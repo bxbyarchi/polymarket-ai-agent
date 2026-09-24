@@ -92,36 +92,28 @@ async def market_history(
 async def calibration(limit: int = Query(default=500, ge=1, le=5000)) -> dict:
     """Backtest saved research predictions against currently resolved markets."""
     from sqlalchemy import select
-    from app.db import Market, ResearchRun
+    from app.db import Market, ResearchRun, MarketResolution
 
     async with SessionLocal() as session:
         result = await session.execute(
-            select(ResearchRun, Market)
-            .join(Market, ResearchRun.market_id == Market.id)
+            select(ResearchRun, MarketResolution)
+            .join(MarketResolution, ResearchRun.market_id == MarketResolution.market_id)
             .order_by(ResearchRun.created_at.desc())
             .limit(limit)
         )
         rows = result.all()
 
-    outcomes: dict[str, int | None] = {}
-    predictions = []
-    for run, market in rows:
-        if run.probability is None:
-            continue
-        if market.id not in outcomes:
-            try:
-                outcomes[market.id] = resolved_outcome(await polymarket.get_market(market.id))
-            except Exception:
-                outcomes[market.id] = None
-        if outcomes[market.id] is not None:
-            predictions.append({
-                "research_run_id": run.id,
-                "market_id": market.id,
-                "probability": run.probability,
-                "outcome": outcomes[market.id],
-                "created_at": run.created_at.isoformat(),
-            })
-
+    predictions = [
+        {
+            "research_run_id": run.id,
+            "market_id": resolution.market_id,
+            "probability": run.probability,
+            "outcome": resolution.outcome,
+            "created_at": run.created_at.isoformat(),
+        }
+        for run, resolution in rows
+        if run.probability is not None
+    ]
     return backtest_predictions(predictions)
 
 
