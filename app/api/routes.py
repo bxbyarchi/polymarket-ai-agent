@@ -1,13 +1,14 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from app.agents.orchestrator import ResearchOrchestrator
-from app.db import SessionLocal, get_market_history
+from app.db import SessionLocal, get_market_history, MarketResolution
 from app.services.persistence import PersistenceService
 from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
 from app.services.scorer import MarketScorer
 from app.services.calibration import resolved_outcome, score_prediction, summarize
 from app.services.backtest import backtest_predictions
+from app.services.resolution_tracker import ResolutionTracker
 
 router = APIRouter()
 scanner = MarketScanner()
@@ -122,3 +123,34 @@ async def calibration(limit: int = Query(default=500, ge=1, le=5000)) -> dict:
             })
 
     return backtest_predictions(predictions)
+
+
+@router.post("/resolutions/sync")
+async def sync_resolutions() -> dict:
+    tracker = ResolutionTracker(polymarket)
+    async with SessionLocal() as session:
+        return await tracker.resolve_stored_markets(session)
+
+
+@router.get("/resolutions")
+async def resolutions(limit: int = Query(default=100, ge=1, le=1000)) -> dict:
+    from sqlalchemy import select
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(MarketResolution)
+            .order_by(MarketResolution.resolved_at.desc())
+            .limit(limit)
+        )
+        return {
+            "count": len(result.scalars().all()),
+            "resolutions": [
+                {
+                    "market_id": row.market_id,
+                    "resolved_at": row.resolved_at.isoformat(),
+                    "outcome": row.outcome,
+                    "source": row.source,
+                }
+                for row in result.scalars()
+            ],
+        }
