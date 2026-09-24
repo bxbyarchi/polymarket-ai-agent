@@ -14,7 +14,7 @@ analyst = Analyst()
 async def root() -> dict:
     return {
         "name": "Polymarket AI Agent",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "mode": "research-only",
     }
 
@@ -36,6 +36,7 @@ async def markets(
 async def analyze_market(market_id: str) -> dict:
     try:
         market = await polymarket.get_market(market_id)
-        return analyst.analyze(market)
+        analysis = await analyst.analyze(market)
+        return {"market": market, "analysis": analysis}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
