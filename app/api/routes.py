@@ -1,5 +1,3 @@
-import json
-
 from fastapi import APIRouter, HTTPException, Query
 
 from app.agents.orchestrator import ResearchOrchestrator
@@ -89,28 +87,30 @@ async def market_history(
 
 
 @router.get("/calibration")
-async def calibration(limit: int = Query(default=500, ge=1, le=5000)) -> dict:
-    """Evaluate saved research predictions against resolved market snapshots."""
+async def calibration(limit: int = Query(default=100, ge=1, le=500)) -> dict:
+    """Evaluate saved research predictions against current market resolution."""
     from sqlalchemy import select
-    from app.db import Market, MarketSnapshot, ResearchRun
+    from app.db import Market, ResearchRun
 
     async with SessionLocal() as session:
         result = await session.execute(
-            select(ResearchRun, Market).join(Market, ResearchRun.market_id == Market.id)
-            .order_by(ResearchRun.created_at.desc()).limit(limit)
+            select(ResearchRun, Market)
+            .join(Market, ResearchRun.market_id == Market.id)
+            .order_by(ResearchRun.created_at.desc())
+            .limit(limit)
         )
         scores = []
+        checked_markets: set[str] = set()
         for run, market in result.all():
-            if run.probability is None:
+            if run.probability is None or market.id in checked_markets:
                 continue
-            snap = await session.execute(
-                select(MarketSnapshot).where(MarketSnapshot.market_id == market.id)
-                .order_by(MarketSnapshot.captured_at.desc()).limit(1)
-            )
-            snapshot = snap.scalar_one_or_none()
-            if snapshot is None:
+            checked_markets.add(market.id)
+            try:
+                current = await polymarket.get_market(market.id)
+            except Exception:
                 continue
-            outcome = resolved_outcome({"outcome_prices": json.loads(snapshot.outcome_prices_json)})
+            outcome = resolved_outcome(current)
             if outcome is not None:
                 scores.append(score_prediction(run.probability, outcome))
+
         return summarize(scores)
