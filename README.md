@@ -41,10 +41,13 @@ Default AI model is gpt-5.6-luna and can be changed with OPENAI_MODEL.
 
 A Dockerfile and Render configuration are included. The API can run with SQLite for a simple MVP, but production history should use Render Postgres through DATABASE_URL.
 
+## Background worker
+
+Run `python worker.py` to start a long-running worker. By default it runs every 15 minutes, stores market snapshots, and researches up to 3 highest-priority markets per cycle. Configure `WORKER_INTERVAL_SECONDS` and `WORKER_MAX_RESEARCH_PER_CYCLE` in `.env`.
+
 ## Next build stages
 
-1. Background scanner/worker for periodic market snapshots.
-2. Research orchestrator with analyst + critic passes.
-3. Probability calibration and historical backtesting.
-4. Paper-trading simulation only after the research/calibration layer is stable.
-5. Dashboard for market history, probability changes, research evidence, and model performance.
+1. Research orchestrator with analyst + critic passes.
+2. Probability calibration and historical backtesting.
+3. Paper-trading simulation only after the research/calibration layer is stable.
+4. Dashboard for market history, probability changes, research evidence, and model performance.
