@@ -4,6 +4,7 @@ from typing import Any
 
 from app.agents.analyst import Analyst
 from app.agents.critic import Critic
+from app.services.calibrator import calibrate_probability
 
 
 class ResearchOrchestrator:
@@ -11,11 +12,16 @@ class ResearchOrchestrator:
         self.analyst = analyst or Analyst()
         self.critic = critic or Critic()
 
-    async def run(self, market: dict[str, Any]) -> dict[str, Any]:
+    async def run(self, market: dict[str, Any], calibration: dict[str, Any] | None = None) -> dict[str, Any]:
         analysis = await self.analyst.analyze(market)
         review = await self.critic.review(market, analysis)
 
         final_probability = self._combine_probability(analysis, review)
+        calibration_result = None
+        if calibration is not None:
+            calibration_result = calibrate_probability(final_probability, calibration)
+            final_probability = calibration_result["calibrated_probability"]
+
         market_probability = analysis.get("market_probability")
         edge = (
             final_probability - market_probability
@@ -28,7 +34,8 @@ class ResearchOrchestrator:
             "probability": final_probability,
             "edge": edge,
             "review": review,
-            "pipeline": "analyst+critic",
+            "pipeline": "analyst+critic+calibration",
+            "calibration": calibration_result,
         }
 
     @staticmethod
