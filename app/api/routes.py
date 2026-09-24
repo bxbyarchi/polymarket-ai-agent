@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from app.agents.analyst import Analyst
+from app.agents.orchestrator import ResearchOrchestrator
 from app.db import SessionLocal, get_market_history
 from app.services.persistence import PersistenceService
 from app.services.polymarket import PolymarketClient
@@ -10,7 +10,7 @@ from app.services.scorer import MarketScorer
 router = APIRouter()
 scanner = MarketScanner()
 polymarket = PolymarketClient()
-analyst = Analyst()
+research = ResearchOrchestrator()
 scorer = MarketScorer()
 persistence = PersistenceService()
 
@@ -69,7 +69,7 @@ async def scan_markets(
 async def analyze_market(market_id: str) -> dict:
     try:
         market = await polymarket.get_market(market_id)
-        analysis = await analyst.analyze(market)
+        analysis = await research.run(market)
         run_id = await persistence.save_analysis(market, analysis)
         return {"research_run_id": run_id, "market": market, "analysis": analysis}
     except Exception as exc:
