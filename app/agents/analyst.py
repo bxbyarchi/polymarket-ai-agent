@@ -110,10 +110,10 @@ probability and confidence must be decimals from 0 to 1.
     @staticmethod
     def _parse_json(raw: str) -> dict[str, Any]:
         cleaned = raw.strip()
-        if cleaned.startswith("~~~"):
+        if cleaned.startswith("\`\`\`"):
             lines = cleaned.splitlines()
-            lines = lines[1:] if lines and lines[0].startswith("~~~") else lines
-            lines = lines[:-1] if lines and lines[-1].strip() == "~~~" else lines
+            lines = lines[1:] if lines and lines[0].startswith("\`\`\`") else lines
+            lines = lines[:-1] if lines and lines[-1].strip() == "\`\`\`" else lines
             cleaned = "\n".join(lines).strip()
 
         try:
