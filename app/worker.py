@@ -10,6 +10,7 @@ from app.db import SessionLocal, init_db, save_market_snapshot, save_research_ru
 from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
 from app.services.scorer import MarketScorer
+from app.services.resolution_tracker import ResolutionTracker
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +22,12 @@ class MarketWorker:
         self.polymarket = PolymarketClient()
         self.scorer = MarketScorer()
         self.research = ResearchOrchestrator()
+        self.resolution_tracker = ResolutionTracker()
 
     async def run_once(self) -> dict[str, Any]:
+        async with SessionLocal() as session:
+            resolution_summary = await self.resolution_tracker.resolve_stored_markets(session)
+
         result = await self.scanner.discover(
             limit=self.settings.default_market_limit,
             min_liquidity=self.settings.min_liquidity,
@@ -60,6 +65,8 @@ class MarketWorker:
 
         return {
             "markets_scanned": len(markets),
+            "markets_checked_for_resolution": resolution_summary["checked"],
+            "markets_resolved": resolution_summary["resolved"],
             "markets_researched": analyzed,
             "research_failures": failures,
         }
