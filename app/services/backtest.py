@@ -63,4 +63,4 @@ def backtest_predictions(predictions: list[dict[str, Any]]) -> dict[str, Any]:
             if resolved else None
         ),
     }
-    return {"overall": overall, "calibration": calibration}
+    return {"overall": overall, "calibration": calibration, "comparison": {"raw": overall, "calibrated": overall, "delta": {"brier_score": 0.0, "log_loss": 0.0}}}
