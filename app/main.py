@@ -7,7 +7,7 @@ settings = get_settings()
 
 app = FastAPI(
     title="Polymarket AI Agent",
-    version="0.1.0",
+    version="0.3.0",
     description="Read-only Polymarket market research and probability estimation service.",
 )
 
@@ -16,4 +16,8 @@ app.include_router(router)
 
 @app.get("/health")
 async def health() -> dict:
-    return {"status": "ok", "environment": settings.app_env}
+    return {
+        "status": "ok",
+        "environment": settings.app_env,
+        "ai_configured": bool(settings.openai_api_key),
+    }
