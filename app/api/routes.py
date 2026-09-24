@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, HTTPException, Query
 
 from app.agents.orchestrator import ResearchOrchestrator
@@ -6,6 +8,7 @@ from app.services.persistence import PersistenceService
 from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
 from app.services.scorer import MarketScorer
+from app.services.calibration import resolved_outcome, score_prediction, summarize
 
 router = APIRouter()
 scanner = MarketScanner()
@@ -83,3 +86,31 @@ async def market_history(
 ) -> dict:
     async with SessionLocal() as session:
         return await get_market_history(session, market_id, limit)
+
+
+@router.get("/calibration")
+async def calibration(limit: int = Query(default=500, ge=1, le=5000)) -> dict:
+    """Evaluate saved research predictions against resolved market snapshots."""
+    from sqlalchemy import select
+    from app.db import Market, MarketSnapshot, ResearchRun
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(ResearchRun, Market).join(Market, ResearchRun.market_id == Market.id)
+            .order_by(ResearchRun.created_at.desc()).limit(limit)
+        )
+        scores = []
+        for run, market in result.all():
+            if run.probability is None:
+                continue
+            snap = await session.execute(
+                select(MarketSnapshot).where(MarketSnapshot.market_id == market.id)
+                .order_by(MarketSnapshot.captured_at.desc()).limit(1)
+            )
+            snapshot = snap.scalar_one_or_none()
+            if snapshot is None:
+                continue
+            outcome = resolved_outcome({"outcome_prices": json.loads(snapshot.outcome_prices_json)})
+            if outcome is not None:
+                scores.append(score_prediction(run.probability, outcome))
+        return summarize(scores)
