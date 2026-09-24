@@ -9,6 +9,7 @@ from app.services.scorer import MarketScorer
 from app.services.calibration import resolved_outcome, score_prediction, summarize
 from app.services.backtest import backtest_predictions
 from app.services.resolution_tracker import ResolutionTracker
+from app.services.calibrator import calibrate_probability
 
 router = APIRouter()
 scanner = MarketScanner()
@@ -147,3 +148,31 @@ async def resolutions(limit: int = Query(default=100, ge=1, le=1000)) -> dict:
                 for row in rows
             ],
         }
+
+
+@router.get("/calibration/apply")
+async def apply_calibration(
+    probability: float = Query(..., ge=0, le=1),
+    min_samples: int = Query(default=20, ge=1, le=1000),
+) -> dict:
+    """Return an empirically calibrated probability from resolved history."""
+    from sqlalchemy import select
+    from app.db import MarketResolution, ResearchRun
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(ResearchRun, MarketResolution)
+            .join(
+                MarketResolution,
+                ResearchRun.market_id == MarketResolution.market_id,
+            )
+        )
+        predictions = [
+            {"probability": run.probability, "outcome": resolution.outcome}
+            for run, resolution in result.all()
+            if run.probability is not None
+        ]
+
+    from app.services.backtest import backtest_predictions
+    calibration = backtest_predictions(predictions)
+    return calibrate_probability(probability, calibration, min_samples)
