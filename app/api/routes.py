@@ -142,8 +142,9 @@ async def resolutions(limit: int = Query(default=100, ge=1, le=1000)) -> dict:
             .order_by(MarketResolution.resolved_at.desc())
             .limit(limit)
         )
+        rows = list(result.scalars())
         return {
-            "count": len(result.scalars().all()),
+            "count": len(rows),
             "resolutions": [
                 {
                     "market_id": row.market_id,
@@ -151,6 +152,6 @@ async def resolutions(limit: int = Query(default=100, ge=1, le=1000)) -> dict:
                     "outcome": row.outcome,
                     "source": row.source,
                 }
-                for row in result.scalars()
+                for row in rows
             ],
         }
