@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import Any
 
-from app.agents.analyst import Analyst
+from app.agents.orchestrator import ResearchOrchestrator
 from app.config import get_settings
 from app.db import SessionLocal, init_db, save_market_snapshot, save_research_run
 from app.services.polymarket import PolymarketClient
@@ -20,7 +20,7 @@ class MarketWorker:
         self.scanner = MarketScanner()
         self.polymarket = PolymarketClient()
         self.scorer = MarketScorer()
-        self.analyst = Analyst()
+        self.research = ResearchOrchestrator()
 
     async def run_once(self) -> dict[str, Any]:
         result = await self.scanner.discover(
@@ -49,7 +49,7 @@ class MarketWorker:
         for market in markets[:max_research]:
             try:
                 full_market = await self.polymarket.get_market(str(market["id"]))
-                analysis = await self.analyst.analyze(full_market)
+                analysis = await self.research.run(full_market)
                 async with SessionLocal() as session:
                     await save_research_run(session, full_market, analysis)
                     await session.commit()
