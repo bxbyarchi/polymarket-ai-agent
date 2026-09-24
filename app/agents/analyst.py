@@ -3,61 +3,41 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from app.config import get_settings
 
 
 SYSTEM_PROMPT = """You are a neutral prediction-market research analyst.
 
-Your job is to estimate the probability that the specified Polymarket outcome will resolve YES.
+Estimate the probability that the specified Polymarket YES outcome will resolve YES.
 
 Rules:
-- Research the question using current web information before estimating.
-- Prioritize primary/official sources, then high-quality reporting and data.
-- Pay attention to the market's exact resolution wording and end date.
-- Separate facts from assumptions.
-- Do not treat the current Polymarket price as truth; it is a market reference point.
-- Consider base rates, recent evidence, counterevidence, and uncertainty.
-- Do not invent facts or sources.
-- Return ONLY valid JSON with this schema:
-{
-  "probability": number,
-  "confidence": number,
-  "market_probability": number|null,
-  "edge": number|null,
-  "summary": string,
-  "key_factors": [string],
-  "counter_factors": [string],
-  "sources": [{"title": string, "url": string}],
-  "as_of": string
-}
-probability and market_probability are decimals from 0 to 1.
-confidence is 0 to 1.
-edge = probability - market_probability when market_probability is available.
+- Research the exact question and resolution criteria using current web information.
+- Prefer primary/official sources, then high-quality reporting and data.
+- Distinguish facts, assumptions, and uncertainty.
+- Do not treat the current Polymarket price as truth; it is only the market reference.
+- Consider base rates, recent evidence, counterevidence, timing, and ambiguity.
+- Never invent facts or sources.
+- Return ONLY valid JSON matching the requested fields.
 """
 
 
 class Analyst:
     def __init__(self) -> None:
         self.settings = get_settings()
-        self.client = None
+        self.client: AsyncOpenAI | None = None
 
-    def _client(self) -> OpenAI:
+    def _client(self) -> AsyncOpenAI:
         if not self.settings.openai_api_key:
             raise RuntimeError("OPENAI_API_KEY is not configured")
         if self.client is None:
-            self.client = OpenAI(api_key=self.settings.openai_api_key)
+            self.client = AsyncOpenAI(api_key=self.settings.openai_api_key)
         return self.client
 
-    def analyze(self, market: dict[str, Any]) -> dict[str, Any]:
+    async def analyze(self, market: dict[str, Any]) -> dict[str, Any]:
         prices = market.get("outcomePrices") or market.get("outcome_prices") or []
-        market_probability = None
-        if isinstance(prices, list) and prices:
-            try:
-                market_probability = float(prices[0])
-            except (TypeError, ValueError):
-                pass
+        market_probability = self._first_float(prices)
 
         prompt = f"""Analyze this Polymarket market.
 
@@ -72,11 +52,23 @@ Outcomes: {market.get("outcomes")}
 Current outcome prices: {prices}
 Current YES market probability: {market_probability}
 
-Research the exact event and its resolution criteria. Use web search for fresh evidence.
-Then estimate the YES probability as of now.
+Research the exact event and resolution criteria with web search.
+
+Return JSON with exactly:
+{{
+  "probability": 0.0,
+  "confidence": 0.0,
+  "summary": "short evidence-based explanation",
+  "key_factors": ["factor"],
+  "counter_factors": ["counter-factor"],
+  "sources": [{{"title": "source title", "url": "https://..."}}],
+  "as_of": "ISO-8601 timestamp"
+}}
+
+probability and confidence must be decimals from 0 to 1.
 """
 
-        response = self._client().responses.create(
+        response = await self._client().responses.create(
             model=self.settings.openai_model,
             instructions=SYSTEM_PROMPT,
             tools=[{"type": "web_search"}],
@@ -84,14 +76,51 @@ Then estimate the YES probability as of now.
             max_output_tokens=self.settings.ai_max_output_tokens,
         )
 
-        raw = response.output_text.strip()
-        try:
-            result = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Model returned non-JSON analysis: {raw}") from exc
+        result = self._parse_json(response.output_text)
+        probability = self._clamp(result.get("probability"))
+        confidence = self._clamp(result.get("confidence"))
 
+        result["probability"] = probability
+        result["confidence"] = confidence
         result["market_probability"] = market_probability
-        if market_probability is not None and result.get("probability") is not None:
-            result["edge"] = float(result["probability"]) - market_probability
+        result["edge"] = (
+            probability - market_probability
+            if probability is not None and market_probability is not None
+            else None
+        )
+        return result
 
+    @staticmethod
+    def _first_float(values: Any) -> float | None:
+        if not isinstance(values, list) or not values:
+            return None
+        try:
+            return float(values[0])
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _clamp(value: Any) -> float | None:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        return max(0.0, min(1.0, number))
+
+    @staticmethod
+    def _parse_json(raw: str) -> dict[str, Any]:
+        cleaned = raw.strip()
+        if cleaned.startswith("~~~"):
+            lines = cleaned.splitlines()
+            lines = lines[1:] if lines and lines[0].startswith("~~~") else lines
+            lines = lines[:-1] if lines and lines[-1].strip() == "~~~" else lines
+            cleaned = "\n".join(lines).strip()
+
+        try:
+            result = json.loads(cleaned)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Model returned invalid JSON: {raw}") from exc
+
+        if not isinstance(result, dict):
+            raise RuntimeError("Model returned JSON that is not an object")
         return result
