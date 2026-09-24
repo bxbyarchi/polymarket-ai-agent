@@ -41,7 +41,14 @@ edge = probability - market_probability when market_probability is available.
 class Analyst:
     def __init__(self) -> None:
         self.settings = get_settings()
-        self.client = OpenAI(api_key=self.settings.openai_api_key)
+        self.client = None
+
+    def _client(self) -> OpenAI:
+        if not self.settings.openai_api_key:
+            raise RuntimeError("OPENAI_API_KEY is not configured")
+        if self.client is None:
+            self.client = OpenAI(api_key=self.settings.openai_api_key)
+        return self.client
 
     def analyze(self, market: dict[str, Any]) -> dict[str, Any]:
         prices = market.get("outcomePrices") or market.get("outcome_prices") or []
@@ -69,7 +76,7 @@ Research the exact event and its resolution criteria. Use web search for fresh e
 Then estimate the YES probability as of now.
 """
 
-        response = self.client.responses.create(
+        response = self._client().responses.create(
             model=self.settings.openai_model,
             instructions=SYSTEM_PROMPT,
             tools=[{"type": "web_search"}],
