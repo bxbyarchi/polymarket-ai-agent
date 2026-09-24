@@ -7,6 +7,7 @@ from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
 from app.services.scorer import MarketScorer
 from app.services.calibration import resolved_outcome, score_prediction, summarize
+from app.services.backtest import backtest_predictions
 
 router = APIRouter()
 scanner = MarketScanner()
@@ -87,8 +88,8 @@ async def market_history(
 
 
 @router.get("/calibration")
-async def calibration(limit: int = Query(default=100, ge=1, le=500)) -> dict:
-    """Evaluate saved research predictions against current market resolution."""
+async def calibration(limit: int = Query(default=500, ge=1, le=5000)) -> dict:
+    """Backtest saved research predictions against currently resolved markets."""
     from sqlalchemy import select
     from app.db import Market, ResearchRun
 
@@ -99,18 +100,25 @@ async def calibration(limit: int = Query(default=100, ge=1, le=500)) -> dict:
             .order_by(ResearchRun.created_at.desc())
             .limit(limit)
         )
-        scores = []
-        checked_markets: set[str] = set()
-        for run, market in result.all():
-            if run.probability is None or market.id in checked_markets:
-                continue
-            checked_markets.add(market.id)
-            try:
-                current = await polymarket.get_market(market.id)
-            except Exception:
-                continue
-            outcome = resolved_outcome(current)
-            if outcome is not None:
-                scores.append(score_prediction(run.probability, outcome))
+        rows = result.all()
 
-        return summarize(scores)
+    outcomes: dict[str, int | None] = {}
+    predictions = []
+    for run, market in rows:
+        if run.probability is None:
+            continue
+        if market.id not in outcomes:
+            try:
+                outcomes[market.id] = resolved_outcome(await polymarket.get_market(market.id))
+            except Exception:
+                outcomes[market.id] = None
+        if outcomes[market.id] is not None:
+            predictions.append({
+                "research_run_id": run.id,
+                "market_id": market.id,
+                "probability": run.probability,
+                "outcome": outcomes[market.id],
+                "created_at": run.created_at.isoformat(),
+            })
+
+    return backtest_predictions(predictions)
