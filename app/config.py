@@ -15,6 +15,9 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite+aiosqlite:///./polymarket.db"
 
+    worker_interval_seconds: int = 900
+    worker_max_research_per_cycle: int = 3
+
     openai_api_key: str = ""
     openai_model: str = "gpt-5.6-luna"
     ai_max_output_tokens: int = 2500
