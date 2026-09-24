@@ -4,7 +4,7 @@ Research-only agent for active Polymarket events. It discovers markets, normaliz
 
 ## Current architecture
 
-Polymarket Gamma API -> Market Scanner -> Research Priority Scorer -> PostgreSQL/SQLite persistence -> Analyst -> Web Search + LLM
+Polymarket Gamma API -> Market Scanner -> Research Priority Scorer -> PostgreSQL/SQLite persistence -> Analyst -> Critic -> Final Probability
 
 The system does not place orders or execute trades.
 
@@ -47,7 +47,6 @@ Run `python worker.py` to start a long-running worker. By default it runs every 
 
 ## Next build stages
 
-1. Research orchestrator with analyst + critic passes.
-2. Probability calibration and historical backtesting.
+1. Probability calibration and historical backtesting.
 3. Paper-trading simulation only after the research/calibration layer is stable.
 4. Dashboard for market history, probability changes, research evidence, and model performance.
