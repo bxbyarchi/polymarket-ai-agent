@@ -3,11 +3,13 @@ from fastapi import APIRouter, HTTPException, Query
 from app.agents.analyst import Analyst
 from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
+from app.services.scorer import MarketScorer
 
 router = APIRouter()
 scanner = MarketScanner()
 polymarket = PolymarketClient()
 analyst = Analyst()
+scorer = MarketScorer()
 
 
 @router.get("/")
@@ -30,6 +32,25 @@ async def markets(
         min_liquidity=min_liquidity,
         min_volume=min_volume,
     )
+
+
+@router.get("/scan")
+async def scan_markets(
+    limit: int = Query(default=20, ge=1, le=100),
+    min_liquidity: float | None = Query(default=None, ge=0),
+    min_volume: float | None = Query(default=None, ge=0),
+) -> dict:
+    result = await scanner.discover(
+        limit=limit,
+        min_liquidity=min_liquidity,
+        min_volume=min_volume,
+    )
+    markets = [
+        {**market, "research_priority": scorer.score(market)}
+        for market in result["markets"]
+    ]
+    markets.sort(key=lambda item: item["research_priority"], reverse=True)
+    return {"count": len(markets), "markets": markets}
 
 
 @router.get("/analyze/{market_id}")
