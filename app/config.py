@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     min_liquidity: float = 1000.0
     min_volume: float = 1000.0
 
+    database_url: str = "sqlite+aiosqlite:///./polymarket.db"
+
     openai_api_key: str = ""
     openai_model: str = "gpt-5.6-luna"
     ai_max_output_tokens: int = 2500
