@@ -14,10 +14,14 @@ class Settings(BaseSettings):
     min_volume: float = 1000.0
 
     openai_api_key: str = ""
-    openai_model: str = "gpt-6-astra"
+    openai_model: str = "gpt-5.6-luna"
     ai_max_output_tokens: int = 2500
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
 @lru_cache
