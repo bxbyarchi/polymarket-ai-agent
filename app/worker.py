@@ -6,11 +6,12 @@ from typing import Any
 
 from app.agents.orchestrator import ResearchOrchestrator
 from app.config import get_settings
-from app.db import SessionLocal, init_db, save_market_snapshot, save_research_run
+from app.db import SessionLocal, init_db, save_market_snapshot, save_research_run, MarketResolution, ResearchRun
 from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
 from app.services.scorer import MarketScorer
 from app.services.resolution_tracker import ResolutionTracker
+from app.services.backtest import backtest_predictions
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,8 @@ class MarketWorker:
         for market in markets[:max_research]:
             try:
                 full_market = await self.polymarket.get_market(str(market["id"]))
-                analysis = await self.research.run(full_market)
+                calibration = await self._load_calibration()
+                analysis = await self.research.run(full_market, calibration=calibration)
                 async with SessionLocal() as session:
                     await save_research_run(session, full_market, analysis)
                     await session.commit()
@@ -70,6 +72,21 @@ class MarketWorker:
             "markets_researched": analyzed,
             "research_failures": failures,
         }
+
+    async def _load_calibration(self) -> dict[str, Any]:
+        from sqlalchemy import select
+
+        async with SessionLocal() as session:
+            result = await session.execute(
+                select(ResearchRun.probability, MarketResolution.outcome)
+                .join(MarketResolution, ResearchRun.market_id == MarketResolution.market_id)
+            )
+            predictions = [
+                {"probability": probability, "outcome": outcome}
+                for probability, outcome in result.all()
+                if probability is not None
+            ]
+        return backtest_predictions(predictions)
 
 
 async def run_forever() -> None:
