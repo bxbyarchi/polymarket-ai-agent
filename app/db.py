@@ -48,6 +48,9 @@ class Market(Base):
     research_runs: Mapped[list["ResearchRun"]] = relationship(
         back_populates="market", cascade="all, delete-orphan"
     )
+    resolution: Mapped["MarketResolution | None"] = relationship(
+        back_populates="market", cascade="all, delete-orphan", uselist=False
+    )
 
 
 class MarketSnapshot(Base):
@@ -65,6 +68,18 @@ class MarketSnapshot(Base):
     raw_json: Mapped[str] = mapped_column(Text, default="{}")
 
     market: Mapped[Market] = relationship(back_populates="snapshots")
+
+
+class MarketResolution(Base):
+    __tablename__ = "market_resolutions"
+
+    market_id: Mapped[str] = mapped_column(ForeignKey("markets.id"), primary_key=True)
+    resolved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    outcome: Mapped[int] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(String(64), default="polymarket")
+    raw_json: Mapped[str] = mapped_column(Text, default="{}")
+
+    market: Mapped[Market] = relationship(back_populates="resolution")
 
 
 class ResearchRun(Base):
