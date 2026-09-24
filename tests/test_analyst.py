@@ -10,9 +10,9 @@ def test_parse_json_response():
 
 def test_parse_fenced_json_response():
     result = Analyst._parse_json(
-        """\`\`\`
+        """```
 {"probability": 0.62}
-\`\`\`"""
+```"""
     )
     assert result["probability"] == 0.62
 
