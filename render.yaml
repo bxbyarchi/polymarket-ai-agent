@@ -19,10 +19,13 @@ services:
       - key: PYTHONUNBUFFERED
         value: "1"
 
+  # Render does not offer a Free plan for continuous background workers.
+  # Keep the worker on the smallest paid worker plan so the 15-minute
+  # research/resolution loop remains a real long-running process.
   - type: worker
     name: polymarket-ai-agent-worker
     runtime: docker
-    plan: free
+    plan: 0.5c-512mb
     dockerfilePath: ./Dockerfile
     dockerCommand: python worker.py
     envVars:
