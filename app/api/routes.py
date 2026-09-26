@@ -11,6 +11,8 @@ from app.services.backtest import backtest_predictions
 from app.services.resolution_tracker import ResolutionTracker
 from app.services.calibrator import calibrate_probability
 from app.services.walk_forward import walk_forward_backtest
+from sqlalchemy import func, case
+from app.db import ResearchRun, Market, MarketSnapshot
 
 router = APIRouter()
 scanner = MarketScanner()
@@ -107,6 +109,79 @@ async def market_history(
 ) -> dict:
     async with SessionLocal() as session:
         return await get_market_history(session, market_id, limit)
+
+
+
+
+@router.get("/metrics")
+async def metrics() -> dict:
+    """Return high-level system and research-quality metrics."""
+    from sqlalchemy import select
+
+    async with SessionLocal() as session:
+        markets_count = await session.scalar(select(func.count(Market.id)))
+        snapshots_count = await session.scalar(select(func.count(MarketSnapshot.id)))
+        runs_count = await session.scalar(select(func.count(ResearchRun.id)))
+        resolutions_count = await session.scalar(select(func.count(MarketResolution.market_id)))
+
+        result = await session.execute(
+            select(ResearchRun, MarketResolution)
+            .join(MarketResolution, ResearchRun.market_id == MarketResolution.market_id)
+            .order_by(ResearchRun.created_at.asc())
+            .limit(10000)
+        )
+        rows = result.all()
+
+        latest_result = await session.execute(
+            select(ResearchRun)
+            .order_by(ResearchRun.created_at.desc())
+            .limit(10)
+        )
+        latest_runs = list(latest_result.scalars())
+
+    predictions = [
+        {
+            "probability": run.probability,
+            "raw_probability": run.raw_probability,
+            "outcome": resolution.outcome,
+            "created_at": run.created_at,
+            "resolved_at": resolution.resolved_at,
+        }
+        for run, resolution in rows
+        if run.probability is not None
+    ]
+    quality = walk_forward_backtest(predictions)
+
+    return {
+        "system": {
+            "markets": markets_count or 0,
+            "snapshots": snapshots_count or 0,
+            "research_runs": runs_count or 0,
+            "resolved_markets": resolutions_count or 0,
+        },
+        "quality": {
+            "predictions_evaluated": quality["predictions"],
+            "calibrated_predictions": quality["calibrated_predictions"],
+            "raw": quality["raw"],
+            "calibrated": quality["calibrated"],
+            "delta": quality["delta"],
+        },
+        "latest_research": [
+            {
+                "id": run.id,
+                "market_id": run.market_id,
+                "created_at": run.created_at.isoformat(),
+                "probability": run.probability,
+                "raw_probability": run.raw_probability,
+                "calibrated_probability": run.calibrated_probability,
+                "calibration_applied": run.calibration_applied,
+                "market_probability": run.market_probability,
+                "edge": run.edge,
+                "confidence": run.confidence,
+            }
+            for run in latest_runs
+        ],
+    }
 
 
 @router.get("/calibration")
