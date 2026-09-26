@@ -1,4 +1,5 @@
 from app.main import app
+from app.api.routes import router as api_router
 from fastapi.routing import APIRoute
 
 
@@ -11,7 +12,7 @@ def test_health_and_readiness_routes_exist():
 def test_scan_and_analyze_use_post_for_side_effects():
     routes = {
         (route.path, tuple(sorted(route.methods or [])))
-        for route in app.routes
+        for route in api_router.routes
         if isinstance(route, APIRoute)
     }
     assert ("/scan", ("POST",)) in routes
