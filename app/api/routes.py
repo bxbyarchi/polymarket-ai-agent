@@ -148,7 +148,7 @@ async def calibration_raw(limit: int = Query(default=5000, ge=1, le=10000)) -> d
         for run, resolution in rows
         if run.probability is not None
     ]
-    return walk_forward_backtest(predictions)
+    return backtest_predictions(predictions)
 
 
 @router.post("/resolutions/sync")
