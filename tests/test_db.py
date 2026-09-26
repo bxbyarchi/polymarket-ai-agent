@@ -17,3 +17,9 @@ async def test_imports():
     from app.db import Base
 
     assert Base.metadata.tables["markets"] is not None
+
+
+def test_history_indexes_exist():
+    from app.db import MarketSnapshot, ResearchRun
+    assert "ix_market_snapshots_market_captured" in {index.name for index in MarketSnapshot.__table__.indexes}
+    assert "ix_research_runs_market_created" in {index.name for index in ResearchRun.__table__.indexes}
