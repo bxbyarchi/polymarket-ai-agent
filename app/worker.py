@@ -67,6 +67,8 @@ class MarketWorker:
                 "research_skipped": "OPENAI_API_KEY not configured",
             }
 
+        calibration = await self._load_calibration()
+
         for market in markets:
             if analyzed >= max_research:
                 break
@@ -74,7 +76,6 @@ class MarketWorker:
                 if await self._recently_researched(str(market["id"])):
                     continue
                 full_market = await self.polymarket.get_market(str(market["id"]))
-                calibration = await self._load_calibration()
                 analysis = await self.research.run(full_market, calibration=calibration)
                 async with SessionLocal() as session:
                     await save_research_run(session, full_market, analysis)
