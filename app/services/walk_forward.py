@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from app.services.backtest import _metrics, backtest_predictions, probability_bucket
@@ -11,8 +11,12 @@ def _timestamp(value: Any) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, datetime):
-        return value
-    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        dt = value
+    else:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def walk_forward_backtest(
@@ -63,6 +67,16 @@ def walk_forward_backtest(
         })
         history.append(row)
 
+    timeline = []
+    window_size = max(1, len(scored) // 20)
+    for index in range(0, len(scored), window_size):
+        window = scored[index:index + window_size]
+        timeline.append({
+            "created_at": window[-1]["created_at"],
+            "predictions": len(window),
+            "raw_brier_score": _metrics(window, "raw_probability")["brier_score"],
+            "calibrated_brier_score": _metrics(window, "calibrated_probability")["brier_score"],
+        })
     raw = _metrics(scored, "raw_probability")
     calibrated = _metrics(scored, "calibrated_probability")
     return {
@@ -70,6 +84,7 @@ def walk_forward_backtest(
         "calibrated_predictions": sum(1 for row in scored if row["calibration_applied"]),
         "raw": raw,
         "calibrated": calibrated,
+        "timeline": timeline,
         "delta": {
             "brier_score": round(calibrated["brier_score"] - raw["brier_score"], 8)
             if raw["brier_score"] is not None and calibrated["brier_score"] is not None else None,
