@@ -27,7 +27,9 @@ persistence = PersistenceService()
 
 def _require_admin_key(x_admin_key: str | None) -> None:
     expected = get_settings().admin_api_key
-    if not expected or not x_admin_key or not secrets.compare_digest(x_admin_key, expected):
+    if not expected:
+        raise HTTPException(status_code=503, detail="Admin API is not configured")
+    if not x_admin_key or not secrets.compare_digest(x_admin_key, expected):
         raise HTTPException(status_code=401, detail="Admin authentication required")
 
 
