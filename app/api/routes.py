@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query\nimport logging
 
 from app.agents.orchestrator import ResearchOrchestrator
 from app.db import SessionLocal, get_market_history, MarketResolution
@@ -13,7 +13,7 @@ from app.services.walk_forward import walk_forward_backtest
 from sqlalchemy import func
 from app.db import ResearchRun, Market, MarketSnapshot
 
-router = APIRouter()
+router = APIRouter()\nlogger = logging.getLogger(__name__)
 scanner = MarketScanner()
 polymarket = PolymarketClient()
 research = ResearchOrchestrator()
@@ -43,7 +43,7 @@ async def markets(
     )
 
 
-@router.get("/scan")
+@router.post("/scan")
 async def scan_markets(
     limit: int = Query(default=20, ge=1, le=100),
     min_liquidity: float | None = Query(default=None, ge=0),
@@ -71,7 +71,7 @@ async def scan_markets(
     return {"count": len(markets_with_priority), "markets": markets_with_priority}
 
 
-@router.get("/analyze/{market_id}")
+@router.post("/analyze/{market_id}")
 async def analyze_market(market_id: str) -> dict:
     try:
         market = await polymarket.get_market(market_id)
@@ -99,6 +99,22 @@ async def analyze_market(market_id: str) -> dict:
         return {"research_run_id": run_id, "market": market, "analysis": analysis}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get("/scan")
+async def scan_markets_legacy(
+    limit: int = Query(default=20, ge=1, le=100),
+    min_liquidity: float | None = Query(default=None, ge=0),
+    min_volume: float | None = Query(default=None, ge=0),
+) -> dict:
+    """Compatibility alias for clients that still call GET /scan."""
+    return await scan_markets(limit, min_liquidity, min_volume)
+
+
+@router.get("/analyze/{market_id}")
+async def analyze_market_legacy(market_id: str) -> dict:
+    """Compatibility alias for clients that still call GET /analyze/{market_id}."""
+    return await analyze_market(market_id)
 
 
 @router.get("/history/{market_id}")
