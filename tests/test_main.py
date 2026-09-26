@@ -29,6 +29,15 @@ def test_admin_key_guard_rejects_missing_or_invalid(monkeypatch):
         admin_api_key = "expected-secret"
 
     monkeypatch.setattr(routes, "get_settings", lambda: Settings())
+    class Unconfigured:
+        admin_api_key = ""
+
+    monkeypatch.setattr(routes, "get_settings", lambda: Unconfigured())
+    with pytest.raises(HTTPException) as unconfigured:
+        routes._require_admin_key("anything")
+    assert unconfigured.value.status_code == 503
+
+    monkeypatch.setattr(routes, "get_settings", lambda: Settings())
     with pytest.raises(HTTPException) as missing:
         routes._require_admin_key(None)
     assert missing.value.status_code == 401
