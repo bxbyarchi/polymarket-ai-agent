@@ -1,6 +1,6 @@
 # Render production setup
 
-The repository contains a complete Render Blueprint in render.yaml.
+The repository contains a Render Blueprint in render.yaml.
 
 ## Target resources
 
@@ -9,6 +9,10 @@ The repository contains a complete Render Blueprint in render.yaml.
 - PostgreSQL: polymarket-ai-agent-db
 - Web health endpoint: /ready
 - Worker command: python worker.py
+
+## Plan and cost note
+
+Render currently does not offer a Free compute plan for continuous background workers. The Blueprint therefore keeps the web service on Free, while the worker uses Render's smallest paid worker plan (0.5c-512mb). Render's current pricing lists that worker plan at $7/month. The Postgres resource remains on Free, subject to Render's current Free-tier limitations.
 
 ## Apply the Blueprint
 
@@ -24,8 +28,9 @@ In Render Dashboard:
 6. For the web service, confirm /ready is the health check.
 7. Confirm DATABASE_URL is linked from polymarket-ai-agent-db.
 8. Confirm the worker uses python worker.py.
-9. Leave OPENAI_API_KEY unset until AI research is intentionally enabled.
-10. Set a strong random ADMIN_API_KEY before exposing mutation endpoints.
+9. Confirm the worker plan is 0.5c-512mb.
+10. Leave OPENAI_API_KEY unset until AI research is intentionally enabled.
+11. Set a strong random ADMIN_API_KEY before exposing mutation endpoints.
 
 ## Verification order
 
