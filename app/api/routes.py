@@ -6,12 +6,11 @@ from app.services.persistence import PersistenceService
 from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
 from app.services.scorer import MarketScorer
-from app.services.calibration import resolved_outcome, score_prediction, summarize
 from app.services.backtest import backtest_predictions
 from app.services.resolution_tracker import ResolutionTracker
 from app.services.calibrator import calibrate_probability
 from app.services.walk_forward import walk_forward_backtest
-from sqlalchemy import func, case
+from sqlalchemy import func
 from app.db import ResearchRun, Market, MarketSnapshot
 
 router = APIRouter()
@@ -134,7 +133,7 @@ async def metrics() -> dict:
 
         latest_result = await session.execute(
             select(ResearchRun)
-            .order_by(ResearchRun.created_at.asc())
+            .order_by(ResearchRun.created_at.desc())
             .limit(10)
         )
         latest_runs = list(latest_result.scalars())
@@ -194,7 +193,7 @@ async def calibration(limit: int = Query(default=500, ge=1, le=5000)) -> dict:
         result = await session.execute(
             select(ResearchRun, MarketResolution)
             .join(MarketResolution, ResearchRun.market_id == MarketResolution.market_id)
-            .order_by(ResearchRun.created_at.desc())
+            .order_by(ResearchRun.created_at.asc())
             .limit(limit)
         )
         rows = result.all()
@@ -218,7 +217,7 @@ async def calibration(limit: int = Query(default=500, ge=1, le=5000)) -> dict:
 
 @router.get("/calibration/raw")
 async def calibration_raw(limit: int = Query(default=5000, ge=1, le=10000)) -> dict:
-    """Evaluate calibration out-of-sample using only earlier resolutions."""
+    """Evaluate stored raw probabilities without applying walk-forward calibration."""
     from sqlalchemy import select
     from app.db import ResearchRun, MarketResolution
 
