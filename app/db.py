@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, select
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, Index, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -42,19 +42,16 @@ class Market(Base):
     token_ids_json: Mapped[str] = mapped_column(Text, default="[]")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
-    snapshots: Mapped[list["MarketSnapshot"]] = relationship(
-        back_populates="market", cascade="all, delete-orphan"
-    )
-    research_runs: Mapped[list["ResearchRun"]] = relationship(
-        back_populates="market", cascade="all, delete-orphan"
-    )
-    resolution: Mapped["MarketResolution | None"] = relationship(
-        back_populates="market", cascade="all, delete-orphan", uselist=False
-    )
+    snapshots: Mapped[list["MarketSnapshot"]] = relationship(back_populates="market", cascade="all, delete-orphan")
+    research_runs: Mapped[list["ResearchRun"]] = relationship(back_populates="market", cascade="all, delete-orphan")
+    resolution: Mapped["MarketResolution | None"] = relationship(back_populates="market", cascade="all, delete-orphan", uselist=False)
 
 
 class MarketSnapshot(Base):
     __tablename__ = "market_snapshots"
+    __table_args__ = (
+        Index("ix_market_snapshots_market_captured", "market_id", "captured_at"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     market_id: Mapped[str] = mapped_column(ForeignKey("markets.id"), index=True)
@@ -66,24 +63,28 @@ class MarketSnapshot(Base):
     research_priority: Mapped[float | None] = mapped_column(Float)
     outcome_prices_json: Mapped[str] = mapped_column(Text, default="[]")
     raw_json: Mapped[str] = mapped_column(Text, default="{}")
-
     market: Mapped[Market] = relationship(back_populates="snapshots")
 
 
 class MarketResolution(Base):
     __tablename__ = "market_resolutions"
+    __table_args__ = (
+        Index("ix_market_resolutions_resolved_at", "resolved_at"),
+    )
 
     market_id: Mapped[str] = mapped_column(ForeignKey("markets.id"), primary_key=True)
-    resolved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    resolved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
     outcome: Mapped[int] = mapped_column(Integer)
     source: Mapped[str] = mapped_column(String(64), default="polymarket")
     raw_json: Mapped[str] = mapped_column(Text, default="{}")
-
     market: Mapped[Market] = relationship(back_populates="resolution")
 
 
 class ResearchRun(Base):
     __tablename__ = "research_runs"
+    __table_args__ = (
+        Index("ix_research_runs_market_created", "market_id", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     market_id: Mapped[str] = mapped_column(ForeignKey("markets.id"), index=True)
@@ -102,11 +103,8 @@ class ResearchRun(Base):
     counter_factors_json: Mapped[str] = mapped_column(Text, default="[]")
     raw_json: Mapped[str] = mapped_column(Text, default="{}")
     error: Mapped[str | None] = mapped_column(Text)
-
     market: Mapped[Market] = relationship(back_populates="research_runs")
-    sources: Mapped[list["ResearchSource"]] = relationship(
-        back_populates="research_run", cascade="all, delete-orphan"
-    )
+    sources: Mapped[list["ResearchSource"]] = relationship(back_populates="research_run", cascade="all, delete-orphan")
 
 
 class ResearchSource(Base):
@@ -116,7 +114,6 @@ class ResearchSource(Base):
     research_run_id: Mapped[int] = mapped_column(ForeignKey("research_runs.id"), index=True)
     title: Mapped[str] = mapped_column(Text)
     url: Mapped[str] = mapped_column(Text)
-
     research_run: Mapped[ResearchRun] = relationship(back_populates="sources")
 
 
@@ -146,7 +143,6 @@ async def upsert_market(session: AsyncSession, market: dict[str, Any]) -> Market
     if row is None:
         row = Market(id=market_id)
         session.add(row)
-
     row.question = market.get("question")
     row.slug = market.get("slug")
     row.condition_id = market.get("condition_id") or market.get("conditionId")
@@ -157,43 +153,28 @@ async def upsert_market(session: AsyncSession, market: dict[str, Any]) -> Market
     row.resolution_source = market.get("resolution_source") or market.get("resolutionSource")
     row.description = market.get("description")
     row.outcomes_json = json.dumps(_json(market.get("outcomes", [])))
-    row.token_ids_json = json.dumps(
-        _json(market.get("clob_token_ids") or market.get("clobTokenIds") or [])
-    )
+    row.token_ids_json = json.dumps(_json(market.get("clob_token_ids") or market.get("clobTokenIds") or []))
     row.updated_at = _utcnow()
     return row
 
 
-async def save_market_snapshot(
-    session: AsyncSession, market: dict[str, Any], research_priority: float | None = None
-) -> MarketSnapshot:
+async def save_market_snapshot(session: AsyncSession, market: dict[str, Any], research_priority: float | None = None) -> MarketSnapshot:
     await upsert_market(session, market)
     snapshot = MarketSnapshot(
         market_id=str(market.get("id", "")),
         volume=float(market.get("volume") or market.get("volumeNum") or 0),
-        volume_24h=float(
-            market.get("volume_24h")
-            or market.get("volume24hr")
-            or market.get("volume24hrClob")
-            or 0
-        ),
+        volume_24h=float(market.get("volume_24h") or market.get("volume24hr") or market.get("volume24hrClob") or 0),
         liquidity=float(market.get("liquidity") or market.get("liquidityNum") or 0),
-        yes_probability=_first_float(
-            market.get("outcome_prices") or market.get("outcomePrices") or []
-        ),
+        yes_probability=_first_float(market.get("outcome_prices") or market.get("outcomePrices") or []),
         research_priority=research_priority,
-        outcome_prices_json=json.dumps(
-            _json(market.get("outcome_prices") or market.get("outcomePrices") or [])
-        ),
+        outcome_prices_json=json.dumps(_json(market.get("outcome_prices") or market.get("outcomePrices") or [])),
         raw_json=json.dumps(_json(market)),
     )
     session.add(snapshot)
     return snapshot
 
 
-async def save_research_run(
-    session: AsyncSession, market: dict[str, Any], analysis: dict[str, Any]
-) -> ResearchRun:
+async def save_research_run(session: AsyncSession, market: dict[str, Any], analysis: dict[str, Any]) -> ResearchRun:
     await upsert_market(session, market)
     run = ResearchRun(
         market_id=str(market.get("id", "")),
@@ -213,7 +194,6 @@ async def save_research_run(
     )
     session.add(run)
     await session.flush()
-
     for source in analysis.get("sources") or []:
         if not isinstance(source, dict):
             continue
@@ -221,7 +201,6 @@ async def save_research_run(
         title = str(source.get("title") or url).strip()
         if url:
             session.add(ResearchSource(research_run_id=run.id, title=title, url=url))
-
     return run
 
 
@@ -234,26 +213,12 @@ def _first_float(values: Any) -> float | None:
         return None
 
 
-async def get_market_history(
-    session: AsyncSession, market_id: str, limit: int = 50
-) -> dict[str, Any]:
+async def get_market_history(session: AsyncSession, market_id: str, limit: int = 50) -> dict[str, Any]:
     market = await session.get(Market, market_id)
     if market is None:
         return {"market": None, "snapshots": [], "research_runs": []}
-
-    snapshots_result = await session.execute(
-        select(MarketSnapshot)
-        .where(MarketSnapshot.market_id == market_id)
-        .order_by(MarketSnapshot.captured_at.desc())
-        .limit(limit)
-    )
-    runs_result = await session.execute(
-        select(ResearchRun)
-        .where(ResearchRun.market_id == market_id)
-        .order_by(ResearchRun.created_at.desc())
-        .limit(limit)
-    )
-
+    snapshots_result = await session.execute(select(MarketSnapshot).where(MarketSnapshot.market_id == market_id).order_by(MarketSnapshot.captured_at.desc()).limit(limit))
+    runs_result = await session.execute(select(ResearchRun).where(ResearchRun.market_id == market_id).order_by(ResearchRun.created_at.desc()).limit(limit))
     return {
         "market": {
             "id": market.id,
@@ -266,32 +231,11 @@ async def get_market_history(
             "updated_at": market.updated_at.isoformat() if market.updated_at else None,
         },
         "snapshots": [
-            {
-                "id": row.id,
-                "captured_at": row.captured_at.isoformat(),
-                "volume": row.volume,
-                "volume_24h": row.volume_24h,
-                "liquidity": row.liquidity,
-                "yes_probability": row.yes_probability,
-                "research_priority": row.research_priority,
-            }
+            {"id": row.id, "captured_at": row.captured_at.isoformat(), "volume": row.volume, "volume_24h": row.volume_24h, "liquidity": row.liquidity, "yes_probability": row.yes_probability, "research_priority": row.research_priority}
             for row in snapshots_result.scalars()
         ],
         "research_runs": [
-            {
-                "id": row.id,
-                "created_at": row.created_at.isoformat(),
-                "model": row.model,
-                "status": row.status,
-                "probability": row.probability,
-                "raw_probability": row.raw_probability,
-                "calibrated_probability": row.calibrated_probability,
-                "calibration_applied": row.calibration_applied,
-                "confidence": row.confidence,
-                "market_probability": row.market_probability,
-                "edge": row.edge,
-                "summary": row.summary,
-            }
+            {"id": row.id, "created_at": row.created_at.isoformat(), "model": row.model, "status": row.status, "probability": row.probability, "raw_probability": row.raw_probability, "calibrated_probability": row.calibrated_probability, "calibration_applied": row.calibration_applied, "confidence": row.confidence, "market_probability": row.market_probability, "edge": row.edge, "summary": row.summary}
             for row in runs_result.scalars()
         ],
     }
