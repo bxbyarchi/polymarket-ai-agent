@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Header
 import logging
+import secrets
 
 from app.agents.orchestrator import ResearchOrchestrator
+from app.config import get_settings
 from app.db import SessionLocal, get_market_history, MarketResolution
 from app.services.persistence import PersistenceService
 from app.services.polymarket import PolymarketClient
@@ -21,6 +23,12 @@ polymarket = PolymarketClient()
 research = ResearchOrchestrator()
 scorer = MarketScorer()
 persistence = PersistenceService()
+
+
+def _require_admin_key(x_admin_key: str | None) -> None:
+    expected = get_settings().admin_api_key
+    if not expected or not x_admin_key or not secrets.compare_digest(x_admin_key, expected):
+        raise HTTPException(status_code=401, detail="Admin authentication required")
 
 
 @router.get("/")
@@ -50,7 +58,9 @@ async def scan_markets(
     limit: int = Query(default=20, ge=1, le=100),
     min_liquidity: float | None = Query(default=None, ge=0),
     min_volume: float | None = Query(default=None, ge=0),
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
 ) -> dict:
+    _require_admin_key(x_admin_key)
     result = await scanner.discover(
         limit=limit,
         min_liquidity=min_liquidity,
@@ -74,7 +84,11 @@ async def scan_markets(
 
 
 @router.post("/analyze/{market_id}")
-async def analyze_market(market_id: str) -> dict:
+async def analyze_market(
+    market_id: str,
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> dict:
+    _require_admin_key(x_admin_key)
     try:
         market = await polymarket.get_market(market_id)
         from sqlalchemy import select
@@ -108,15 +122,19 @@ async def scan_markets_legacy(
     limit: int = Query(default=20, ge=1, le=100),
     min_liquidity: float | None = Query(default=None, ge=0),
     min_volume: float | None = Query(default=None, ge=0),
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
 ) -> dict:
     """Compatibility alias for clients that still call GET /scan."""
-    return await scan_markets(limit, min_liquidity, min_volume)
+    return await scan_markets(limit, min_liquidity, min_volume, x_admin_key)
 
 
 @router.get("/analyze/{market_id}")
-async def analyze_market_legacy(market_id: str) -> dict:
+async def analyze_market_legacy(
+    market_id: str,
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> dict:
     """Compatibility alias for clients that still call GET /analyze/{market_id}."""
-    return await analyze_market(market_id)
+    return await analyze_market(market_id, x_admin_key)
 
 
 @router.get("/history/{market_id}")
@@ -263,7 +281,8 @@ async def calibration_raw(limit: int = Query(default=5000, ge=1, le=10000)) -> d
 
 
 @router.post("/resolutions/sync")
-async def sync_resolutions() -> dict:
+async def sync_resolutions(x_admin_key: str | None = Header(default=None, alias="X-Admin-Key")) -> dict:
+    _require_admin_key(x_admin_key)
     tracker = ResolutionTracker(polymarket)
     async with SessionLocal() as session:
         return await tracker.resolve_stored_markets(session)
