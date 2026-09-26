@@ -37,9 +37,9 @@ Live research may use all currently resolved history because those outcomes are 
 
 Copy .env.example to .env. OPENAI_API_KEY is required only for AI research. The current read-only scanner and resolution flow use Polymarket's public Gamma API, so a Polymarket API key is not required yet.
 
-Other settings include OPENAI_MODEL, AI_MAX_OUTPUT_TOKENS, DATABASE_URL, WORKER_INTERVAL_SECONDS, WORKER_MAX_RESEARCH_PER_CYCLE, market filters, and request timeout.
+Other settings include OPENAI_MODEL, AI_MAX_OUTPUT_TOKENS, DATABASE_URL, ADMIN_API_KEY, WORKER_INTERVAL_SECONDS, WORKER_MAX_RESEARCH_PER_CYCLE, market filters, and request timeout.
 
-Never commit .env or API keys to Git.
+Never commit .env or API keys to Git. The POST /scan, POST /analyze/{market_id}, and POST /resolutions/sync endpoints require the X-Admin-Key header matching ADMIN_API_KEY.
 
 ## Local development
 
