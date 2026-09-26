@@ -24,7 +24,7 @@ class ResearchOrchestrator:
 
         market_probability = analysis.get("market_probability")
         edge = (
-            final_probability - market_probability
+            round(final_probability - market_probability, 6)
             if final_probability is not None and market_probability is not None
             else None
         )
