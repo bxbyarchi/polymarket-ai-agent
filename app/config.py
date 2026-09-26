@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     min_research_interval_seconds: int = 3600
 
     openai_api_key: str = ""
+    admin_api_key: str = ""
     openai_model: str = "gpt-5.6-luna"
     ai_max_output_tokens: int = 2500
 
