@@ -10,6 +10,7 @@ from app.services.calibration import resolved_outcome, score_prediction, summari
 from app.services.backtest import backtest_predictions
 from app.services.resolution_tracker import ResolutionTracker
 from app.services.calibrator import calibrate_probability
+from app.services.walk_forward import walk_forward_backtest
 
 router = APIRouter()
 scanner = MarketScanner()
@@ -109,13 +110,45 @@ async def calibration(limit: int = Query(default=500, ge=1, le=5000)) -> dict:
             "research_run_id": run.id,
             "market_id": resolution.market_id,
             "probability": run.probability,
+            "raw_probability": run.raw_probability,
+            "calibrated_probability": run.calibrated_probability,
             "outcome": resolution.outcome,
-            "created_at": run.created_at.isoformat(),
+            "created_at": run.created_at,
+            "resolved_at": resolution.resolved_at,
         }
         for run, resolution in rows
         if run.probability is not None
     ]
     return backtest_predictions(predictions)
+
+
+@router.get("/calibration/walk-forward")
+async def calibration_walk_forward(limit: int = Query(default=5000, ge=1, le=10000)) -> dict:
+    """Evaluate calibration out-of-sample using only earlier resolutions."""
+    from sqlalchemy import select
+    from app.db import ResearchRun, MarketResolution
+
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(ResearchRun, MarketResolution)
+            .join(MarketResolution, ResearchRun.market_id == MarketResolution.market_id)
+            .order_by(ResearchRun.created_at.asc())
+            .limit(limit)
+        )
+        rows = result.all()
+
+    predictions = [
+        {
+            "probability": run.probability,
+            "raw_probability": run.raw_probability,
+            "outcome": resolution.outcome,
+            "created_at": run.created_at,
+            "resolved_at": resolution.resolved_at,
+        }
+        for run, resolution in rows
+        if run.probability is not None
+    ]
+    return walk_forward_backtest(predictions)
 
 
 @router.post("/resolutions/sync")
