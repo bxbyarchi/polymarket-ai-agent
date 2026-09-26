@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Polymarket AI Agent — Dashboard</title>
+<style>
+:root{--bg:#0b0d12;--panel:#121620;--panel2:#171c27;--text:#eef2f7;--muted:#8d98aa;--line:#252c39;--accent:#8ab4ff;--good:#77d69b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,sans-serif}.wrap{max-width:1400px;margin:auto;padding:28px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}.title h1{margin:0;font-size:26px}.title p{margin:5px 0;color:var(--muted)}button{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:9px 14px;border-radius:9px;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px}.card{padding:18px}.label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.value{font-size:28px;font-weight:700;margin-top:7px}.sub{color:var(--muted);font-size:12px;margin-top:4px}
+.layout{display:grid;grid-template-columns:1.1fr .9fr;gap:12px}.panel{padding:18px;margin-bottom:12px}.panel h2{font-size:16px;margin:0 0 14px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px}.metric{background:var(--panel2);border-radius:10px;padding:14px}.metric .num{font-size:22px;font-weight:700;margin-top:5px}.metric small{color:var(--muted)}
+.tablewrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:850px}.table th,.table td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}.table th{color:var(--muted);font-size:11px;text-transform:uppercase}.mono{font-variant-numeric:tabular-nums}.pill{display:inline-block;padding:3px 7px;border-radius:99px;background:#202633;color:#cbd4e2;font-size:11px}.pos{color:var(--good)}.barrow{display:grid;grid-template-columns:80px 1fr 55px;align-items:center;gap:10px;margin:12px 0}.bar{height:10px;background:#202633;border-radius:99px;overflow:hidden}.fill{height:100%;background:var(--good)}.empty{color:var(--muted);padding:30px;text-align:center}
+svg{width:100%;height:210px;display:block}@media(max-width:950px){.grid{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}}@media(max-width:560px){.wrap{padding:16px}.grid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}}
+</style></head>
+<body><div class="wrap">
+<header class="top"><div class="title"><h1>Polymarket AI Agent</h1><p>Research-only market intelligence · live API metrics</p></div><button onclick="load()">↻ Refresh</button></header>
+<section class="grid" id="system"></section>
+<div class="layout"><main>
+<section class="panel"><h2>Research quality</h2><div class="metrics" id="quality"></div></section>
+<section class="panel"><h2>Quality over time</h2><div id="timeline"></div></section>
+<section class="panel"><h2>Latest research</h2><div class="tablewrap"><table class="table"><thead><tr><th>Market</th><th>Created</th><th>Raw</th><th>Calibrated</th><th>Market</th><th>Edge</th><th>Confidence</th></tr></thead><tbody id="runs"></tbody></table></div></section>
+</main><aside>
+<section class="panel"><h2>Calibration coverage</h2><div id="coverage"></div></section>
+<section class="panel"><h2>Active markets</h2><div class="tablewrap"><table class="table"><thead><tr><th>Question</th><th>YES</th><th>Liquidity</th><th>24h volume</th><th>Priority</th></tr></thead><tbody id="markets"></tbody></table></div></section>
+</aside></div></div>
+<script>
+const pct=x=>x==null?"—":(Number(x)*100).toFixed(1)+"%";
+const num=x=>x==null?"—":Number(x).toFixed(4);
+const money=x=>x==null?"—":Number(x).toLocaleString(undefined,{maximumFractionDigits:0});
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+function chart(points){if(!points?.length)return '<div class="empty">No resolved research history yet.</div>';const vals=points.flatMap(x=>[x.raw_brier_score,x.calibrated_brier_score]).filter(Number.isFinite);if(!vals.length)return '<div class="empty">No quality scores yet.</div>';const w=760,h=190,p=24,max=Math.max(...vals,.001);const path=k=>points.map((x,i)=>{const X=p+(w-2*p)*i/Math.max(1,points.length-1),Y=h-p-(h-2*p)*x[k]/max;return(i?'L':'M')+X.toFixed(1)+' '+Y.toFixed(1)}).join(' ');return '<svg viewBox="0 0 '+w+' '+h+'"><path d="'+path('raw_brier_score')+'" fill="none" stroke="var(--accent)" stroke-width="2"/><path d="'+path('calibrated_brier_score')+'" fill="none" stroke="var(--good)" stroke-width="2"/></svg><div class="sub">Blue: raw Brier · Green: calibrated Brier.</div>'}
+async function load(){try{const [m,ms]=await Promise.all([fetch('/metrics').then(r=>r.json()),fetch('/markets?limit=20').then(r=>r.json())]);const s=m.system||{},q=m.quality||{};
+document.getElementById('system').innerHTML=[['Markets scanned',s.markets,'stored market records'],['Snapshots',s.snapshots,'market observations'],['AI analyses',s.research_runs,'saved research runs'],['Resolved markets',s.resolved_markets,'resolution records']].map(x=>'<div class="card"><div class="label">'+x[0]+'</div><div class="value mono">'+x[1]+'</div><div class="sub">'+x[2]+'</div></div>').join('');
+document.getElementById('quality').innerHTML=[['Raw Brier',q.raw?.brier_score],['Calibrated Brier',q.calibrated?.brier_score],['Raw Log Loss',q.raw?.log_loss],['Calibrated Log Loss',q.calibrated?.log_loss]].map(x=>'<div class="metric"><small>'+x[0]+'</small><div class="num mono">'+num(x[1])+'</div></div>').join('');
+const ev=q.predictions_evaluated||0,ca=q.calibrated_predictions||0,coverage=ev?ca/ev:0;document.getElementById('coverage').innerHTML='<div class="barrow"><span>Applied</span><div class="bar"><div class="fill" style="width:'+(coverage*100)+'%"></div></div><b>'+pct(coverage)+'</b></div><div class="sub">'+ca+' of '+ev+' evaluated predictions received bucket calibration.</div>';
+document.getElementById('timeline').innerHTML=chart(q.timeline);
+document.getElementById('runs').innerHTML=(m.latest_research||[]).map(r=>'<tr><td><span class="pill">'+esc(String(r.market_id).slice(0,14))+'</span></td><td>'+esc(new Date(r.created_at).toLocaleString())+'</td><td class="mono">'+pct(r.raw_probability)+'</td><td class="mono">'+pct(r.calibrated_probability)+'</td><td class="mono">'+pct(r.market_probability)+'</td><td class="mono '+(Number(r.edge)>=0?'pos':'')+'">'+(r.edge==null?'—':(r.edge*100).toFixed(1)+'pp')+'</td><td class="mono">'+(r.confidence==null?'—':Number(r.confidence).toFixed(2))+'</td></tr>').join('')||'<tr><td colspan="7" class="empty">No research runs yet.</td></tr>';
+document.getElementById('markets').innerHTML=(ms.markets||[]).map(x=>'<tr><td>'+esc(x.question||x.slug||x.id)+'</td><td class="mono">'+pct(x.yes_probability)+'</td><td class="mono">'+money(x.liquidity)+'</td><td class="mono">'+money(x.volume24h)+'</td><td class="mono">'+num(x.research_priority)+'</td></tr>').join('')||'<tr><td colspan="5" class="empty">No markets found.</td></tr>';
+}catch(e){document.getElementById('timeline').innerHTML='<div class="empty">Dashboard API error: '+esc(e.message)+'</div>'}}load();
+</script></body></html>
