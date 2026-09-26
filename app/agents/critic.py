@@ -33,6 +33,11 @@ class Critic:
             self.client = AsyncOpenAI(api_key=self.settings.openai_api_key)
         return self.client
 
+    async def close(self) -> None:
+        if self.client is not None:
+            await self.client.close()
+            self.client = None
+
     async def review(self, market: dict[str, Any], analysis: dict[str, Any]) -> dict[str, Any]:
         prompt = f"""Review this prediction-market analysis.
 
