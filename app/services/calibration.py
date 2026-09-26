@@ -5,6 +5,8 @@ from typing import Any
 
 
 def resolved_outcome(market: dict[str, Any]) -> int | None:
+    if market.get("closed") is not True:
+        return None
     prices = market.get("outcomePrices") or market.get("outcome_prices") or []
     if not isinstance(prices, list) or not prices:
         return None
