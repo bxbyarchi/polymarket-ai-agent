@@ -5,3 +5,10 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
+
+  - type: worker
+    name: polymarket-ai-agent-worker
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerCommand: python worker.py
