@@ -11,7 +11,7 @@ from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
 from app.services.scorer import MarketScorer
 from app.services.resolution_tracker import ResolutionTracker
-from app.services.backtest import backtest_predictions
+from app.services.walk_forward import walk_forward_backtest
 
 logger = logging.getLogger(__name__)
 
@@ -78,15 +78,27 @@ class MarketWorker:
 
         async with SessionLocal() as session:
             result = await session.execute(
-                select(ResearchRun.probability, MarketResolution.outcome)
+                select(
+                    ResearchRun.probability,
+                    ResearchRun.raw_probability,
+                    ResearchRun.created_at,
+                    MarketResolution.outcome,
+                    MarketResolution.resolved_at,
+                )
                 .join(MarketResolution, ResearchRun.market_id == MarketResolution.market_id)
             )
             predictions = [
-                {"probability": probability, "outcome": outcome}
-                for probability, outcome in result.all()
+                {
+                    "probability": probability,
+                    "raw_probability": raw_probability,
+                    "outcome": outcome,
+                    "created_at": created_at,
+                    "resolved_at": resolved_at,
+                }
+                for probability, raw_probability, created_at, outcome, resolved_at in result.all()
                 if probability is not None
             ]
-        return backtest_predictions(predictions)
+        return walk_forward_backtest(predictions)
 
 
 async def run_forever() -> None:
