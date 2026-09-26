@@ -21,6 +21,23 @@ def test_scan_and_analyze_use_post_for_side_effects():
     assert ("/analyze/{market_id}", ("POST",)) in routes
 
 
+def test_production_rejects_sqlite_database():
+    from app.config import Settings
+
+    with pytest.raises(ValueError, match="Production deployments require DATABASE_URL"):
+        Settings(app_env="production", database_url="sqlite+aiosqlite:///./polymarket.db")
+
+
+def test_production_accepts_postgres_database():
+    from app.config import Settings
+
+    settings = Settings(
+        app_env="production",
+        database_url="postgresql+asyncpg://user:password@host/db",
+    )
+    assert settings.database_url.startswith("postgresql")
+
+
 def test_admin_key_guard_rejects_missing_or_invalid(monkeypatch):
     from app.api import routes
 
