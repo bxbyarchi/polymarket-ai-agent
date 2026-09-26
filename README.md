@@ -8,6 +8,17 @@ Polymarket Gamma API -> Market Scanner -> Research Priority Scorer -> PostgreSQL
 
 The system does not place orders or execute trades.
 
+## Calibration and backtesting
+
+The agent keeps raw and calibrated research probabilities and resolves stored markets against Polymarket outcomes.
+
+- `GET /calibration` — leakage-safe walk-forward evaluation of calibration.
+- `GET /calibration/raw` — historical metric comparison using stored probabilities.
+- `GET /calibration/apply?probability=0.7` — apply the current empirical calibration to a new probability.
+- `POST /resolutions/sync` — fetch and persist newly resolved markets.
+
+Walk-forward evaluation only uses resolutions that were known before each prediction was created. This prevents future outcomes from leaking into historical calibration metrics. Live research still uses all currently resolved history because those outcomes are legitimately available at prediction time.
+
 ## API
 
 - GET /health — service, AI, and database configuration status.
