@@ -295,7 +295,7 @@ async def apply_calibration(
             )
         )
         predictions = [
-            {"probability": run.probability, "outcome": resolution.outcome}
+            {"probability": run.raw_probability or run.probability, "outcome": resolution.outcome}
             for run, resolution in result.all()
             if run.probability is not None
         ]
