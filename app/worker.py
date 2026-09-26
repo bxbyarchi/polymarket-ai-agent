@@ -11,7 +11,7 @@ from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
 from app.services.scorer import MarketScorer
 from app.services.resolution_tracker import ResolutionTracker
-from app.services.walk_forward import walk_forward_backtest
+from app.services.backtest import backtest_predictions
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class MarketWorker:
                 for probability, raw_probability, created_at, outcome, resolved_at in result.all()
                 if probability is not None
             ]
-        return walk_forward_backtest(predictions)
+        return backtest_predictions(predictions)
 
 
 async def run_forever() -> None:
