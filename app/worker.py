@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.agents.orchestrator import ResearchOrchestrator
@@ -56,6 +57,8 @@ class MarketWorker:
 
         for market in markets[:max_research]:
             try:
+                if await self._recently_researched(str(market["id"])):
+                    continue
                 full_market = await self.polymarket.get_market(str(market["id"]))
                 calibration = await self._load_calibration()
                 analysis = await self.research.run(full_market, calibration=calibration)
@@ -75,6 +78,22 @@ class MarketWorker:
             "research_failures": failures,
         }
 
+    async def _recently_researched(self, market_id: str) -> bool:
+        cutoff = datetime.now(timezone.utc) - timedelta(
+            seconds=max(0, self.settings.min_research_interval_seconds)
+        )
+        async with SessionLocal() as session:
+            latest = await session.scalar(
+                select(ResearchRun.created_at)
+                .where(ResearchRun.market_id == market_id)
+                .order_by(ResearchRun.created_at.desc())
+                .limit(1)
+            )
+        if latest is None:
+            return False
+        if latest.tzinfo is None:
+            latest = latest.replace(tzinfo=timezone.utc)
+        return latest >= cutoff
     async def _load_calibration(self) -> dict[str, Any]:
         from sqlalchemy import select
 
