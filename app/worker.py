@@ -25,7 +25,7 @@ class MarketWorker:
         self.research = ResearchOrchestrator()
         self.analyst = self.research.analyst
         self.critic = self.research.critic
-        self.resolution_tracker = ResolutionTracker()
+        self.resolution_tracker = ResolutionTracker(self.polymarket)
 
     async def run_once(self) -> dict[str, Any]:
         async with SessionLocal() as session:
@@ -108,9 +108,10 @@ async def run_forever() -> None:
     settings = get_settings()
     await init_db()
 
+    worker = MarketWorker()
     while True:
         try:
-            summary = await MarketWorker().run_once()
+            summary = await worker.run_once()
             logger.info("Worker cycle completed: %s", summary)
         except Exception:
             logger.exception("Worker cycle failed")
