@@ -151,6 +151,7 @@ async def run_forever() -> None:
             await asyncio.sleep(settings.worker_interval_seconds)
     finally:
         await worker.polymarket.close()
+        await worker.research.close()
 
 
 if __name__ == "__main__":
