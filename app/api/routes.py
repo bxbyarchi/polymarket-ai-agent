@@ -92,7 +92,7 @@ async def analyze_market(market_id: str) -> dict:
                 for run, resolution in result.all()
                 if run.probability is not None
             ]
-        calibration = walk_forward_backtest(calibration_rows)
+        calibration = backtest_predictions(calibration_rows)
         analysis = await research.run(market, calibration=calibration)
         run_id = await persistence.save_analysis(market, analysis)
         return {"research_run_id": run_id, "market": market, "analysis": analysis}
