@@ -7,6 +7,8 @@ from typing import Any
 
 from app.agents.orchestrator import ResearchOrchestrator
 from app.config import get_settings
+from sqlalchemy import select
+
 from app.db import SessionLocal, init_db, save_market_snapshot, save_research_run, MarketResolution, ResearchRun
 from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
@@ -55,7 +57,9 @@ class MarketWorker:
         failures = 0
         max_research = max(0, self.settings.worker_max_research_per_cycle)
 
-        for market in markets[:max_research]:
+        for market in markets:
+            if analyzed >= max_research:
+                break
             try:
                 if await self._recently_researched(str(market["id"])):
                     continue
@@ -95,8 +99,7 @@ class MarketWorker:
             latest = latest.replace(tzinfo=timezone.utc)
         return latest >= cutoff
     async def _load_calibration(self) -> dict[str, Any]:
-        from sqlalchemy import select
-
+        
         async with SessionLocal() as session:
             result = await session.execute(
                 select(
