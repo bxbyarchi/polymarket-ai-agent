@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +31,12 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def validate_production_database(self):
+        if self.app_env.lower() in {"production", "prod"} and self.database_url.startswith("sqlite"):
+            raise ValueError("Production deployments require DATABASE_URL to point to PostgreSQL")
+        return self
 
 
 @lru_cache
