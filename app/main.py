@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from sqlalchemy import text
 
 from app.api.routes import router
 from app.api.dashboard import router as dashboard_router
 from app.config import get_settings
-from app.db import close_db, init_db
+from app.db import SessionLocal, close_db, init_db
 
 settings = get_settings()
 
@@ -30,9 +31,18 @@ app.include_router(dashboard_router)
 
 @app.get("/health")
 async def health() -> dict:
+    database_reachable = False
+    try:
+        async with SessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        database_reachable = True
+    except Exception:
+        database_reachable = False
+
     return {
-        "status": "ok",
+        "status": "ok" if database_reachable else "degraded",
         "environment": settings.app_env,
         "ai_configured": bool(settings.openai_api_key),
         "database_configured": bool(settings.database_url),
+        "database_reachable": database_reachable,
     }
