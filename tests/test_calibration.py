@@ -2,8 +2,8 @@ from app.services.calibration import resolved_outcome, score_prediction, summari
 
 
 def test_resolved_outcome():
-    assert resolved_outcome({"outcome_prices": ["1", "0"]}) == 1
-    assert resolved_outcome({"outcome_prices": ["0", "1"]}) == 0
+    assert resolved_outcome({"outcome_prices": ["1", "0"], "closed": True}) == 1
+    assert resolved_outcome({"outcome_prices": ["0", "1"], "closed": True}) == 0
     assert resolved_outcome({"outcome_prices": ["0.5", "0.5"]}) is None
 
 
