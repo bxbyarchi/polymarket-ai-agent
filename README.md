@@ -1,64 +1,75 @@
 # Polymarket AI Agent
 
-Research-only agent for active Polymarket events. It discovers markets, normalizes market data, assigns research priority, researches the exact resolution criteria with web search, estimates a probability independently from the market price, and stores market/research history.
+Research-only agent for active Polymarket markets. It discovers markets, normalizes data, assigns research priority, researches exact resolution criteria with web search, estimates an independent probability, compares it with the market probability, and stores research history.
 
-## Current architecture
+**No orders are placed and no trades are executed.**
 
-Polymarket Gamma API -> Market Scanner -> Research Priority Scorer -> PostgreSQL/SQLite persistence -> Analyst -> Critic -> Final Probability
+## Architecture
 
-The system does not place orders or execute trades.
+Polymarket Gamma API -> Scanner -> Priority Scorer -> Persistence -> Analyst -> Critic -> Calibration -> Research history
 
-## Calibration and backtesting
-
-The agent keeps raw and calibrated research probabilities and resolves stored markets against Polymarket outcomes.
-
-- `GET /metrics` — system counters plus Raw/Calibrated Brier and Log Loss for the research-quality dashboard.
-- `GET /calibration` — leakage-safe walk-forward evaluation of calibration.
-- `GET /calibration/raw` — historical metric comparison using stored probabilities.
-- `GET /calibration/apply?probability=0.7` — apply the current empirical calibration to a new probability.
-- `POST /resolutions/sync` — fetch and persist newly resolved markets.
-
-Walk-forward evaluation only uses resolutions that were known before each prediction was created. This prevents future outcomes from leaking into historical calibration metrics. Live research still uses all currently resolved history because those outcomes are legitimately available at prediction time.
+The project includes FastAPI, SQLite for local development, PostgreSQL/asyncpg support, a background worker, analyst + critic research, leakage-safe walk-forward calibration, research-quality metrics, and a web dashboard.
 
 ## API
 
-- GET /health — service, AI, and database configuration status.
+- GET /health — service and configuration status (does not expose secrets).
+- GET /dashboard — browser dashboard.
 - GET /markets?limit=50 — active market discovery.
-- GET /scan?limit=20 — active markets with a deterministic research-priority score and a persisted snapshot.
-- GET /analyze/{market_id} — fetch one market, run fresh AI/web research, and persist the research run plus sources.
-- GET /history/{market_id} — return stored market snapshots and research runs.
+- GET /scan?limit=20 — discover, score, and persist market snapshots.
+- GET /analyze/{market_id} — run fresh AI/web research and persist the result.
+- GET /history/{market_id} — market snapshots and research runs.
+- GET /metrics — system counters, quality metrics, timeline, and latest research.
+- GET /calibration — leakage-safe walk-forward evaluation.
+- GET /calibration/raw — historical stored-probability metrics.
+- GET /calibration/apply?probability=0.7 — apply empirical calibration.
+- POST /resolutions/sync — synchronize newly resolved stored markets.
+- GET /resolutions — stored resolution records.
+- GET /docs — OpenAPI documentation.
 
-## Persistence
+## Calibration
 
-The MVP now has four tables:
+Raw and calibrated probabilities are stored separately. Walk-forward evaluation only uses a resolution when that resolution was available before the prediction was created. This prevents future-outcome leakage in historical quality metrics.
 
-- markets — stable market metadata.
-- market_snapshots — point-in-time price, volume, liquidity, and research-priority observations.
-- research_runs — every AI probability estimate, confidence, edge, summary, and raw result.
-- research_sources — URLs attached to each research run.
+Live research may use all currently resolved history because those outcomes are legitimately available at the time of a new prediction.
 
-Local development defaults to SQLite. Set DATABASE_URL to a Render PostgreSQL connection string for production.
+## Configuration
 
-## Local run
+Copy .env.example to .env. OPENAI_API_KEY is required only for AI research. The current read-only scanner and resolution flow use Polymarket's public Gamma API, so a Polymarket API key is not required yet.
 
-1. Copy .env.example to .env.
-2. Set OPENAI_API_KEY if you want /analyze.
-3. Install dependencies: pip install -r requirements.txt.
-4. Start: uvicorn app.main:app --reload.
-5. Open /docs.
+Other settings include OPENAI_MODEL, AI_MAX_OUTPUT_TOKENS, DATABASE_URL, WORKER_INTERVAL_SECONDS, WORKER_MAX_RESEARCH_PER_CYCLE, market filters, and request timeout.
 
-Default AI model is gpt-5.6-luna and can be changed with OPENAI_MODEL.
+Never commit .env or API keys to Git.
 
-## Deployment
+## Local development
 
-A Dockerfile and Render configuration are included. The API can run with SQLite for a simple MVP, but production history should use Render Postgres through DATABASE_URL.
+    pip install -r requirements.txt
+    cp .env.example .env
+    uvicorn app.main:app --reload
+
+Then open /dashboard or /docs.
+
+Without OPENAI_API_KEY, market scanning, persistence, dashboard, resolution sync, and calibration endpoints can still be exercised. AI analysis endpoints intentionally fail with a clear configuration error.
 
 ## Background worker
 
-Run `python worker.py` to start a long-running worker. By default it runs every 15 minutes, stores market snapshots, and researches up to 3 highest-priority markets per cycle. Configure `WORKER_INTERVAL_SECONDS` and `WORKER_MAX_RESEARCH_PER_CYCLE` in `.env`.
+Run:
 
-## Next build stages
+    python worker.py
 
-1. Probability calibration and historical backtesting.
-3. Paper-trading simulation only after the research/calibration layer is stable.
-4. Dashboard for market history, probability changes, research evidence, and model performance.
+Each cycle synchronizes stored resolutions, discovers active markets, persists snapshots, ranks research priority, researches up to WORKER_MAX_RESEARCH_PER_CYCLE markets, persists research and source evidence, and sleeps for WORKER_INTERVAL_SECONDS.
+
+## Deployment
+
+Docker and Render configuration are included. For production: create PostgreSQL, set DATABASE_URL, set OPENAI_API_KEY when AI research is enabled, deploy the web service, run the worker as a separate long-running process/service, and verify /health and /dashboard.
+
+The current system remains research-only even after deployment.
+
+## Security
+
+Secrets are read from environment variables and are never returned by API responses. The repository ignores .env and local database files should remain outside version control.
+
+## Development status
+
+Completed: market discovery and normalization, priority scoring, persistence, analyst + critic pipeline, resolution tracking, calibration, leakage-safe walk-forward backtesting, metrics API, dashboard, and CI test suite.
+
+Next: production Postgres deployment, real OpenAI key, end-to-end live research run, richer market detail/history UI, and paper-trading simulation only after the research layer is validated.
