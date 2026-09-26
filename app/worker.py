@@ -140,14 +140,17 @@ async def run_forever() -> None:
     logging.basicConfig(level=get_settings().log_level)
     settings = get_settings()
     worker = MarketWorker()
-    while True:
-        try:
-            summary = await worker.run_once()
-            logger.info("Worker cycle completed: %s", summary)
-        except Exception:
-            logger.exception("Worker cycle failed")
+    try:
+        while True:
+            try:
+                summary = await worker.run_once()
+                logger.info("Worker cycle completed: %s", summary)
+            except Exception:
+                logger.exception("Worker cycle failed")
 
-        await asyncio.sleep(settings.worker_interval_seconds)
+            await asyncio.sleep(settings.worker_interval_seconds)
+    finally:
+        await worker.polymarket.close()
 
 
 if __name__ == "__main__":
