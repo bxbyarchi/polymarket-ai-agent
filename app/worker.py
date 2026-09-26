@@ -6,9 +6,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.agents.orchestrator import ResearchOrchestrator
-from app.config import get_settings
 from sqlalchemy import select
 
+from app.config import get_settings
 from app.db import SessionLocal, init_db, save_market_snapshot, save_research_run, MarketResolution, ResearchRun
 from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
@@ -98,8 +98,8 @@ class MarketWorker:
         if latest.tzinfo is None:
             latest = latest.replace(tzinfo=timezone.utc)
         return latest >= cutoff
+
     async def _load_calibration(self) -> dict[str, Any]:
-        
         async with SessionLocal() as session:
             result = await session.execute(
                 select(
