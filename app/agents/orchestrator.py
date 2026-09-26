@@ -34,7 +34,7 @@ class ResearchOrchestrator:
             "probability": final_probability,
             "edge": edge,
             "review": review,
-            "pipeline": "analyst+critic+calibration",
+            "pipeline": "analyst+critic+calibration" if calibration_result is not None else "analyst+critic",
             "calibration": calibration_result,
         }
 
