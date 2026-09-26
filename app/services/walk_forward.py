@@ -31,7 +31,7 @@ def walk_forward_backtest(
         raw = item.get("raw_probability", item.get("probability"))
         created = _timestamp(item.get("created_at"))
         resolved = _timestamp(item.get("resolved_at"))
-        if raw is None or created is None or resolved is None:
+        if raw is None or created is None or resolved is None or resolved <= created:
             continue
         rows.append({
             **item,
