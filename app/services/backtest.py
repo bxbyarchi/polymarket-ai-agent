@@ -30,7 +30,7 @@ def _metrics(items: list[dict[str, Any]], field: str) -> dict[str, Any]:
 
 def backtest_predictions(predictions: list[dict[str, Any]]) -> dict[str, Any]:
     """Compare raw and calibrated historical predictions."""
-    rows = [x for x in predictions if x.get("outcome") in (0, 1)]
+    rows = [dict(x) for x in predictions if x.get("outcome") in (0, 1)]
     for row in rows:
         if row.get("raw_probability") is None:
             row["raw_probability"] = row.get("probability")
@@ -56,6 +56,7 @@ def backtest_predictions(predictions: list[dict[str, Any]]) -> dict[str, Any]:
         })
 
     return {
+        "predictions": raw["predictions"],
         "raw": raw,
         "calibrated": calibrated,
         "delta": {
