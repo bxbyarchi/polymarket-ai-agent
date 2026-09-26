@@ -12,6 +12,10 @@ class ResearchOrchestrator:
         self.analyst = analyst or Analyst()
         self.critic = critic or Critic()
 
+    async def close(self) -> None:
+        await self.analyst.close()
+        await self.critic.close()
+
     async def run(self, market: dict[str, Any], calibration: dict[str, Any] | None = None) -> dict[str, Any]:
         analysis = await self.analyst.analyze(market)
         review = await self.critic.review(market, analysis)
