@@ -23,6 +23,8 @@ class MarketWorker:
         self.polymarket = PolymarketClient()
         self.scorer = MarketScorer()
         self.research = ResearchOrchestrator()
+        self.analyst = self.research.analyst
+        self.critic = self.research.critic
         self.resolution_tracker = ResolutionTracker()
 
     async def run_once(self) -> dict[str, Any]:
