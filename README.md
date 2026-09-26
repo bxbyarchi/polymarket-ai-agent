@@ -73,3 +73,11 @@ Secrets are read from environment variables and are never returned by API respon
 Completed: market discovery and normalization, priority scoring, persistence, analyst + critic pipeline, resolution tracking, calibration, leakage-safe walk-forward backtesting, metrics API, dashboard, and CI test suite.
 
 Next: production Postgres deployment, real OpenAI key, end-to-end live research run, richer market detail/history UI, and paper-trading simulation only after the research layer is validated.
+
+
+### Database migrations
+
+Production deployments use Alembic migrations. The Docker entrypoint runs `alembic upgrade head` before starting either the API or worker.
+
+For a persistent deployment, set `DATABASE_URL` to a managed PostgreSQL database. The repository still keeps SQLite as the convenient local default.
+
