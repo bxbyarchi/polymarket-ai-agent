@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query\nimport logging
+from fastapi import APIRouter, HTTPException, Query
+import logging
 
 from app.agents.orchestrator import ResearchOrchestrator
 from app.db import SessionLocal, get_market_history, MarketResolution
@@ -13,7 +14,8 @@ from app.services.walk_forward import walk_forward_backtest
 from sqlalchemy import func
 from app.db import ResearchRun, Market, MarketSnapshot
 
-router = APIRouter()\nlogger = logging.getLogger(__name__)
+router = APIRouter()
+logger = logging.getLogger(__name__)
 scanner = MarketScanner()
 polymarket = PolymarketClient()
 research = ResearchOrchestrator()
