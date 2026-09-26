@@ -1,6 +1,6 @@
-from app.main import app
+from app.api.dashboard import router
 
 
 def test_dashboard_route_is_registered():
-    paths = {route.path for route in app.routes}
+    paths = {route.path for route in router.routes}
     assert "/dashboard" in paths
