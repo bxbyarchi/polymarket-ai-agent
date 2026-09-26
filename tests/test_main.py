@@ -17,3 +17,24 @@ def test_scan_and_analyze_use_post_for_side_effects():
     }
     assert ("/scan", ("POST",)) in routes
     assert ("/analyze/{market_id}", ("POST",)) in routes
+
+
+
+def test_admin_key_guard_rejects_missing_or_invalid(monkeypatch):
+    import pytest
+    from app.api import routes
+    from fastapi import HTTPException
+
+    class Settings:
+        admin_api_key = "expected-secret"
+
+    monkeypatch.setattr(routes, "get_settings", lambda: Settings())
+    with pytest.raises(HTTPException) as missing:
+        routes._require_admin_key(None)
+    assert missing.value.status_code == 401
+
+    with pytest.raises(HTTPException) as invalid:
+        routes._require_admin_key("wrong-secret")
+    assert invalid.value.status_code == 401
+
+    routes._require_admin_key("expected-secret")
