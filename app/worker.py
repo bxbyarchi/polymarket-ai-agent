@@ -9,7 +9,7 @@ from app.agents.orchestrator import ResearchOrchestrator
 from sqlalchemy import select
 
 from app.config import get_settings
-from app.db import SessionLocal, init_db, save_market_snapshot, save_research_run, MarketResolution, ResearchRun
+from app.db import SessionLocal, save_market_snapshot, save_research_run, MarketResolution, ResearchRun
 from app.services.polymarket import PolymarketClient
 from app.services.scanner import MarketScanner
 from app.services.scorer import MarketScorer
@@ -128,8 +128,6 @@ class MarketWorker:
 async def run_forever() -> None:
     logging.basicConfig(level=get_settings().log_level)
     settings = get_settings()
-    await init_db()
-
     worker = MarketWorker()
     while True:
         try:
