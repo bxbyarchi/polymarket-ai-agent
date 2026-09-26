@@ -16,7 +16,7 @@ class ResolutionTracker:
 
     async def resolve_stored_markets(self, session: AsyncSession) -> dict[str, int]:
         result = await session.execute(
-            select(Market).where(Market.resolution == None)
+            select(Market).where(Market.resolution.is_(None))
         )
         markets = list(result.scalars())
         checked = 0
