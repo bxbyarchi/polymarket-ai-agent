@@ -12,7 +12,7 @@ The project includes FastAPI, SQLite for local development, PostgreSQL/asyncpg s
 
 ## API
 
-- GET /health — service and configuration status (does not expose secrets).
+- GET /health — service and configuration status (does not expose secrets).\n- GET /ready — readiness check; returns HTTP 503 when the database is unavailable.
 - GET /dashboard — browser dashboard.
 - GET /markets?limit=50 — active market discovery.
 - GET /scan?limit=20 — discover, score, and persist market snapshots.
