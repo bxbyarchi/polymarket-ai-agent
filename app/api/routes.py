@@ -115,8 +115,12 @@ async def analyze_market(
         analysis = await research.run(market, calibration=calibration)
         run_id = await persistence.save_analysis(market, analysis)
         return {"research_run_id": run_id, "market": market, "analysis": analysis}
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("Market analysis failed for %s", market_id)
+        raise HTTPException(
+            status_code=502,
+            detail="Market analysis failed. Check server logs for details.",
+        )
 
 
 @router.get("/scan")
@@ -146,8 +150,6 @@ async def market_history(
 ) -> dict:
     async with SessionLocal() as session:
         return await get_market_history(session, market_id, limit)
-
-
 
 
 @router.get("/metrics")
@@ -283,7 +285,9 @@ async def calibration_raw(limit: int = Query(default=5000, ge=1, le=10000)) -> d
 
 
 @router.post("/resolutions/sync")
-async def sync_resolutions(x_admin_key: str | None = Header(default=None, alias="X-Admin-Key")) -> dict:
+async def sync_resolutions(
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> dict:
     _require_admin_key(x_admin_key)
     tracker = ResolutionTracker(polymarket)
     async with SessionLocal() as session:
@@ -338,6 +342,5 @@ async def apply_calibration(
             if run.probability is not None
         ]
 
-    from app.services.backtest import backtest_predictions
     calibration = backtest_predictions(predictions)
     return calibrate_probability(probability, calibration, min_samples)
