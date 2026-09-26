@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     worker_interval_seconds: int = 900
     worker_max_research_per_cycle: int = 3
+    min_research_interval_seconds: int = 3600
 
     openai_api_key: str = ""
     openai_model: str = "gpt-5.6-luna"
