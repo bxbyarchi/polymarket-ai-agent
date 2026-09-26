@@ -6,14 +6,13 @@ from sqlalchemy import text
 from app.api.routes import router
 from app.api.dashboard import router as dashboard_router
 from app.config import get_settings
-from app.db import SessionLocal, close_db, init_db
+from app.db import SessionLocal, close_db
 
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    await init_db()
     yield
     await close_db()
 
