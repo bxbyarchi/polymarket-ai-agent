@@ -74,7 +74,26 @@ async def scan_markets(
 async def analyze_market(market_id: str) -> dict:
     try:
         market = await polymarket.get_market(market_id)
-        analysis = await research.run(market)
+        from sqlalchemy import select
+        from app.db import ResearchRun, MarketResolution
+        async with SessionLocal() as session:
+            result = await session.execute(
+                select(ResearchRun, MarketResolution)
+                .join(MarketResolution, ResearchRun.market_id == MarketResolution.market_id)
+            )
+            calibration_rows = [
+                {
+                    "probability": run.probability,
+                    "raw_probability": run.raw_probability,
+                    "outcome": resolution.outcome,
+                    "created_at": run.created_at,
+                    "resolved_at": resolution.resolved_at,
+                }
+                for run, resolution in result.all()
+                if run.probability is not None
+            ]
+        calibration = walk_forward_backtest(calibration_rows)
+        analysis = await research.run(market, calibration=calibration)
         run_id = await persistence.save_analysis(market, analysis)
         return {"research_run_id": run_id, "market": market, "analysis": analysis}
     except Exception as exc:
