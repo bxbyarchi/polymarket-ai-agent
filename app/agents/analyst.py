@@ -35,6 +35,11 @@ class Analyst:
             self.client = AsyncOpenAI(api_key=self.settings.openai_api_key)
         return self.client
 
+    async def close(self) -> None:
+        if self.client is not None:
+            await self.client.close()
+            self.client = None
+
     async def analyze(self, market: dict[str, Any]) -> dict[str, Any]:
         prices = market.get("outcomePrices") or market.get("outcome_prices") or []
         market_probability = self._first_float(prices)
