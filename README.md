@@ -15,8 +15,8 @@ The project includes FastAPI, SQLite for local development, PostgreSQL/asyncpg s
 - GET /health — service and configuration status (does not expose secrets).\n- GET /ready — readiness check; returns HTTP 503 when the database is unavailable.
 - GET /dashboard — browser dashboard.
 - GET /markets?limit=50 — active market discovery.
-- GET /scan?limit=20 — discover, score, and persist market snapshots.
-- GET /analyze/{market_id} — run fresh AI/web research and persist the result.
+- POST /scan?limit=20 — discover, score, and persist market snapshots (GET remains as a compatibility alias).
+- POST /analyze/{market_id} — run fresh AI/web research and persist the result (GET remains as a compatibility alias).
 - GET /history/{market_id} — market snapshots and research runs.
 - GET /metrics — system counters, quality metrics, timeline, and latest research.
 - GET /calibration — leakage-safe walk-forward evaluation.
@@ -60,7 +60,7 @@ Each cycle synchronizes stored resolutions, discovers active markets, persists s
 
 ## Deployment
 
-Docker and Render configuration are included. For production: create PostgreSQL, set DATABASE_URL, set OPENAI_API_KEY when AI research is enabled, deploy the web service, run the worker as a separate long-running process/service, and verify /health and /dashboard.
+Docker and Render configuration are included. For production: create PostgreSQL, set DATABASE_URL, set OPENAI_API_KEY when AI research is enabled, deploy the web service, run the worker as a separate long-running process/service, and verify /ready, /health, and /dashboard. Both the API and worker run Alembic migrations on container startup.
 
 The current system remains research-only even after deployment.
 
@@ -79,5 +79,5 @@ Next: production Postgres deployment, real OpenAI key, end-to-end live research 
 
 Production deployments use Alembic migrations. The Docker entrypoint runs `alembic upgrade head` before starting either the API or worker.
 
-For a persistent deployment, set `DATABASE_URL` to a managed PostgreSQL database. The repository still keeps SQLite as the convenient local default.
+For a persistent deployment, set `DATABASE_URL` to a managed PostgreSQL database in both the web service and worker. Do not use the default SQLite database for a multi-service production deployment: web and worker containers do not share a durable SQLite file. The repository keeps SQLite only as the convenient local default.
 
