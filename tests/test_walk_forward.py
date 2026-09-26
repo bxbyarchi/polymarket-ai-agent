@@ -33,3 +33,12 @@ def test_walk_forward_requires_resolution_before_prediction_for_calibration():
     ]
     result = walk_forward_backtest(rows, min_bucket_samples=1)
     assert result["calibrated_predictions"] == 1
+
+
+def test_walk_forward_excludes_predictions_created_after_resolution():
+    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    rows = [
+        {"probability": 0.9, "outcome": 1, "created_at": base + timedelta(days=2), "resolved_at": base + timedelta(days=1)},
+    ]
+    result = walk_forward_backtest(rows, min_bucket_samples=1)
+    assert result["predictions"] == 0
