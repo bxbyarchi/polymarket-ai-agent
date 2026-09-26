@@ -12,6 +12,7 @@ The system does not place orders or execute trades.
 
 The agent keeps raw and calibrated research probabilities and resolves stored markets against Polymarket outcomes.
 
+- `GET /metrics` — system counters plus Raw/Calibrated Brier and Log Loss for the research-quality dashboard.
 - `GET /calibration` — leakage-safe walk-forward evaluation of calibration.
 - `GET /calibration/raw` — historical metric comparison using stored probabilities.
 - `GET /calibration/apply?probability=0.7` — apply the current empirical calibration to a new probability.
