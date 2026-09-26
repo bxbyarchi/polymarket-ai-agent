@@ -119,11 +119,11 @@ async def calibration(limit: int = Query(default=500, ge=1, le=5000)) -> dict:
         for run, resolution in rows
         if run.probability is not None
     ]
-    return backtest_predictions(predictions)
+    return walk_forward_backtest(predictions)
 
 
-@router.get("/calibration/walk-forward")
-async def calibration_walk_forward(limit: int = Query(default=5000, ge=1, le=10000)) -> dict:
+@router.get("/calibration/raw")
+async def calibration_raw(limit: int = Query(default=5000, ge=1, le=10000)) -> dict:
     """Evaluate calibration out-of-sample using only earlier resolutions."""
     from sqlalchemy import select
     from app.db import ResearchRun, MarketResolution
