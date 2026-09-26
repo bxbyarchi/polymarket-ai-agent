@@ -134,7 +134,7 @@ async def metrics() -> dict:
 
         latest_result = await session.execute(
             select(ResearchRun)
-            .order_by(ResearchRun.created_at.desc())
+            .order_by(ResearchRun.created_at.asc())
             .limit(10)
         )
         latest_runs = list(latest_result.scalars())
