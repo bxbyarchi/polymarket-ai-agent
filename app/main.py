@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 
-from app.api.routes import router
+from app.api.routes import router, polymarket, research
 from app.api.dashboard import router as dashboard_router
 from app.config import get_settings
 from app.db import SessionLocal, close_db
@@ -14,6 +14,8 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     yield
+    await polymarket.close()
+    await research.close()
     await close_db()
 
 
