@@ -39,7 +39,7 @@ async def run_migrations_online() -> None:
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
     connectable = async_engine_from_config(
         {"sqlalchemy.url": url},
-        prefix="",
+        prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
     async with connectable.connect() as connection:
