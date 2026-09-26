@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 
 from app.api.routes import router
@@ -28,16 +28,18 @@ app.include_router(router)
 app.include_router(dashboard_router)
 
 
-@app.get("/health")
-async def health() -> dict:
-    database_reachable = False
+async def _database_reachable() -> bool:
     try:
         async with SessionLocal() as session:
             await session.execute(text("SELECT 1"))
-        database_reachable = True
+        return True
     except Exception:
-        database_reachable = False
+        return False
 
+
+@app.get("/health")
+async def health() -> dict:
+    database_reachable = await _database_reachable()
     return {
         "status": "ok" if database_reachable else "degraded",
         "environment": settings.app_env,
@@ -45,3 +47,11 @@ async def health() -> dict:
         "database_configured": bool(settings.database_url),
         "database_reachable": database_reachable,
     }
+
+
+@app.get("/ready")
+async def ready() -> dict:
+    database_reachable = await _database_reachable()
+    if not database_reachable:
+        raise HTTPException(status_code=503, detail="Database is not reachable")
+    return {"status": "ready"}
