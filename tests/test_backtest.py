@@ -12,7 +12,7 @@ def test_backtest_calibration():
         {"probability": 0.6, "outcome": 0},
         {"probability": 0.9, "outcome": 1},
     ])
-    assert result["overall"]["predictions"] == 3
+    assert result["predictions"] == 3
     assert result["calibration"][0]["predictions"] == 1
 
 
