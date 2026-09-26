@@ -83,10 +83,10 @@ review_probability and confidence must be between 0 and 1.
     @staticmethod
     def _parse_json(raw: str) -> dict[str, Any]:
         cleaned = raw.strip()
-        if cleaned.startswith(```):
+        if cleaned.startswith("```"):
             lines = cleaned.splitlines()
-            lines = lines[1:] if lines and lines[0].startswith(```) else lines
-            lines = lines[:-1] if lines and lines[-1].strip() == ``` else lines
+            lines = lines[1:] if lines and lines[0].startswith("```") else lines
+            lines = lines[:-1] if lines and lines[-1].strip() == "```" else lines
             cleaned = "\n".join(lines).strip()
         result = json.loads(cleaned)
         if not isinstance(result, dict):
