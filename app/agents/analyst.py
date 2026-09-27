@@ -6,6 +6,7 @@ from typing import Any
 from google import genai
 from google.genai import types
 
+from app.agents.gemini_client import generate_with_resilience
 from app.config import get_settings
 
 
@@ -93,8 +94,10 @@ event_date may be null. market_probability_observed may be null if unavailable. 
                 types.Part.from_bytes(data=screenshot_bytes, mime_type=screenshot_mime),
             ]
 
-        response = await self._client().aio.models.generate_content(
+        response = await generate_with_resilience(
+            self._client(),
             model=self.settings.gemini_model,
+            fallback_model=self.settings.gemini_fallback_model,
             contents=contents,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
