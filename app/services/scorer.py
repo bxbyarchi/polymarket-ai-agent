@@ -57,10 +57,10 @@ class MarketScorer:
 
         if days <= 0:
             return 0.0
-        if days <= 1:
+        if days <= 2:
             return 1.0
         if days <= 7:
-            return 0.8
+            return 0.7
         if days <= 30:
             return 0.5
         return 0.2
