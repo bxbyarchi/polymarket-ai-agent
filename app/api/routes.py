@@ -125,12 +125,10 @@ async def analyze_market(
         analysis = await research.run(market, calibration=calibration)
         run_id = await persistence.save_analysis(market, analysis)
         return {"research_run_id": run_id, "market": market, "analysis": analysis}
-    except Exception:
+    except Exception as exc:
         logger.exception("Market analysis failed for %s", market_id)
-        raise HTTPException(
-            status_code=502,
-            detail="Market analysis failed. Check server logs for details.",
-        )
+        detail = "AI quota temporarily exhausted. Retry after the new Lite-model deployment is live." if any(token in str(exc).upper() for token in ("RESOURCE_EXHAUSTED", "QUOTA", "429")) else "Market analysis failed. Check server logs for details."
+        raise HTTPException(status_code=502, detail=detail)
 
 
 @router.post("/research/reference")
@@ -199,12 +197,10 @@ async def research_reference(
             "market": market,
             "analysis": analysis,
         }
-    except Exception:
+    except Exception as exc:
         logger.exception("Reference research failed")
-        raise HTTPException(
-            status_code=502,
-            detail="Reference research failed. Check server logs for details.",
-        )
+        detail = "AI quota temporarily exhausted. Retry after the new Lite-model deployment is live." if any(token in str(exc).upper() for token in ("RESOURCE_EXHAUSTED", "QUOTA", "429")) else "Reference research failed. Check server logs for details."
+        raise HTTPException(status_code=502, detail=detail)
 
 
 @router.get("/scan")
