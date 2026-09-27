@@ -46,6 +46,12 @@ async def health() -> dict:
         "status": "ok" if database_reachable else "degraded",
         "environment": settings.app_env,
         "ai_configured": bool(settings.gemini_api_key),
+        "polymarket_auth_configured": all((
+            settings.polymarket_api_key,
+            settings.polymarket_api_secret,
+            settings.polymarket_api_passphrase,
+            settings.polymarket_address,
+        )),
         "database_configured": bool(settings.database_url),
         "database_reachable": database_reachable,
     }
