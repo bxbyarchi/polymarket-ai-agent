@@ -92,3 +92,19 @@ class MarketScanner:
             "yes_probability": probability,
             "clob_token_ids": token_ids,
         }
+
+    @staticmethod
+    def _category(market: dict[str, Any]) -> str:
+        text = " ".join(
+            str(market.get(key) or "")
+            for key in ("question", "slug", "description")
+        ).lower()
+        groups = {
+            "politics": ("election", "president", "senate", "congress", "vote", "politic", "trump", "minister"),
+            "finance": ("fed", "interest rate", "inflation", "cpi", "stock", "bitcoin", "btc", "ethereum", "eth", "finance"),
+            "sports": ("nba", "nfl", "mlb", "nhl", "ufc", "football", "soccer", "tennis", "match", "game", "sport"),
+        }
+        for category, words in groups.items():
+            if any(word in text for word in words):
+                return category
+        return "other"
