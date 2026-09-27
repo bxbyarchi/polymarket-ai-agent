@@ -178,7 +178,7 @@ async def save_research_run(session: AsyncSession, market: dict[str, Any], analy
     await upsert_market(session, market)
     run = ResearchRun(
         market_id=str(market.get("id", "")),
-        model=settings.openai_model,
+        model=settings.gemini_model,
         status="completed",
         probability=analysis.get("probability"),
         raw_probability=(analysis.get("calibration") or {}).get("raw_probability", analysis.get("probability")),
