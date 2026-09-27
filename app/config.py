@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     worker_max_research_per_cycle: int = 3
     min_research_interval_seconds: int = 3600
     resolution_concurrency: int = 10
+    research_horizon_hours: int = 48
+    research_categories: str = "politics,finance,sports"
 
     gemini_api_key: str = ""
     admin_api_key: str = ""
