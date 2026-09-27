@@ -3,6 +3,9 @@ services:
     name: polymarket-ai-agent
     runtime: docker
     plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: commit
     dockerfilePath: ./Dockerfile
     healthCheckPath: /ready
     envVars:
@@ -25,6 +28,9 @@ services:
     name: polymarket-ai-agent-worker
     runtime: docker
     plan: 0.5c-512mb
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: commit
     dockerfilePath: ./Dockerfile
     dockerCommand: python worker_once.py
     schedule: "*/15 * * * *"
