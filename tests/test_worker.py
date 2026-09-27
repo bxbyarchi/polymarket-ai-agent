@@ -11,5 +11,5 @@ def test_worker_has_core_services():
 
 def test_worker_can_skip_ai_without_key(monkeypatch):
     worker = MarketWorker()
-    monkeypatch.setattr(worker.settings, "openai_api_key", "")
-    assert worker.settings.openai_api_key == ""
+    monkeypatch.setattr(worker.settings, "gemini_api_key", "")
+    assert worker.settings.gemini_api_key == ""
