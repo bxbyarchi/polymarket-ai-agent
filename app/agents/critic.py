@@ -68,7 +68,9 @@ review_probability and confidence must be between 0 and 1.
 
         response = await generate_with_resilience(
             self._client(),
-            model=self.settings.gemini_model,\n            fallback_model=self.settings.gemini_fallback_model,\n            contents=f"{SYSTEM_PROMPT}\n\n{prompt}",
+            model=self.settings.gemini_model,
+            fallback_model=self.settings.gemini_fallback_model,
+            contents=f"{SYSTEM_PROMPT}\n\n{prompt}",
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema={
