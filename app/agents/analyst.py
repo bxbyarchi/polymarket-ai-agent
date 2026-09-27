@@ -30,15 +30,15 @@ class Analyst:
         self.client: Any | None = None
 
     def _client(self) -> Any:
-        if not self.settings.openai_api_key:
-            raise RuntimeError("OPENAI_API_KEY is not configured")
+        if not self.settings.gemini_api_key:
+            raise RuntimeError("GEMINI_API_KEY is not configured")
         if self.client is None:
-            self.client = AsyncOpenAI(api_key=self.settings.openai_api_key)
+            self.client = genai.Client(api_key=self.settings.gemini_api_key)
         return self.client
 
     async def close(self) -> None:
         if self.client is not None:
-            await self.client.aclose()
+            await self.client.aio.aclose()
             self.client = None
 
     async def analyze(self, market: dict[str, Any]) -> dict[str, Any]:
@@ -74,15 +74,29 @@ Return JSON with exactly:
 probability and confidence must be decimals from 0 to 1.
 """
 
-        response = await self._client().responses.create(
-            model=self.settings.openai_model,
-            instructions=SYSTEM_PROMPT,
-            tools=[{"type": "web_search"}],
-            input=prompt,
-            max_output_tokens=self.settings.ai_max_output_tokens,
+        response = await self._client().aio.models.generate_content(
+            model=self.settings.gemini_model,
+            contents=f"{SYSTEM_PROMPT}\n\n{prompt}",
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema={
+                    "type": "OBJECT",
+                    "properties": {
+                        "probability": {"type": "NUMBER"},
+                        "confidence": {"type": "NUMBER"},
+                        "summary": {"type": "STRING"},
+                        "key_factors": {"type": "ARRAY", "items": {"type": "STRING"}},
+                        "counter_factors": {"type": "ARRAY", "items": {"type": "STRING"}},
+                        "sources": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {"title": {"type": "STRING"}, "url": {"type": "STRING"}}, "required": ["title", "url"]}},
+                        "as_of": {"type": "STRING"},
+                    },
+                    "required": ["probability", "confidence", "summary", "key_factors", "counter_factors", "sources", "as_of"],
+                },
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+            ),
         )
 
-        result = self._parse_json(response.output_text)
+        result = self._parse_json(response.text)
         probability = self._clamp(result.get("probability"))
         confidence = self._clamp(result.get("confidence"))
 
