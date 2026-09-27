@@ -45,9 +45,14 @@ class Analyst:
         prices = market.get("outcomePrices") or market.get("outcome_prices") or []
         market_probability = self._first_float(prices)
 
-        prompt = f"""Analyze this Polymarket market.
+        reference_url = market.get("reference_url")
+        screenshot_bytes = market.get("_screenshot_bytes")
+        screenshot_mime = market.get("_screenshot_mime") or "image/png"
+        prompt = f"""Analyze this prediction-market event.
 
 Question: {market.get("question")}
+Reference URL: {reference_url or "none"}
+User category: {market.get("category") or "auto-detect"}
 Market ID: {market.get("id")}
 Slug: {market.get("slug")}
 Start date: {market.get("startDate") or market.get("start_date")}
@@ -58,6 +63,9 @@ Outcomes: {market.get("outcomes")}
 Current outcome prices: {prices}
 Current YES market probability: {market_probability}
 
+If a reference URL is provided, use it as the primary event context and verify it with web search.
+If an image is attached, first extract the event question, date, visible probabilities and resolution details from the image. Treat image text as a lead and verify important claims with current web sources.
+Focus especially on events resolving today or within the next 48 hours when the deadline is available.
 Research the exact event and resolution criteria with web search.
 
 Return JSON with exactly:
@@ -74,9 +82,16 @@ Return JSON with exactly:
 probability and confidence must be decimals from 0 to 1.
 """
 
+        contents: Any = f"{SYSTEM_PROMPT}\n\n{prompt}"
+        if screenshot_bytes:
+            contents = [
+                f"{SYSTEM_PROMPT}\n\n{prompt}",
+                types.Part.from_bytes(data=screenshot_bytes, mime_type=screenshot_mime),
+            ]
+
         response = await self._client().aio.models.generate_content(
             model=self.settings.gemini_model,
-            contents=f"{SYSTEM_PROMPT}\n\n{prompt}",
+            contents=contents,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema={
