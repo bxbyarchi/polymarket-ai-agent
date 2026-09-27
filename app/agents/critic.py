@@ -83,7 +83,7 @@ review_probability and confidence must be between 0 and 1.
                     },
                     "required": ["approved", "review_probability", "confidence", "issues", "missing_evidence", "reasoning", "sources_to_verify"],
                 },
-                tools=[types.Tool(google_search=types.GoogleSearch())],
+                tools=[types.Tool(google_search=types.GoogleSearch())] if self.settings.gemini_enable_google_search else None,
             ),
         )
         result = self._parse_json(response.text)
