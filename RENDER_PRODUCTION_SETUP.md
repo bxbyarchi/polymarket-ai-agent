@@ -5,14 +5,17 @@ The repository contains a Render Blueprint in render.yaml.
 ## Target resources
 
 - Web service: polymarket-ai-agent
-- Background worker: polymarket-ai-agent-worker
+- Scheduled research/resolution job: polymarket-ai-agent-worker
 - PostgreSQL: polymarket-ai-agent-db
 - Web health endpoint: /ready
-- Worker command: python worker.py
+- Cron command: python worker_once.py
+- Cron schedule: every 15 minutes (UTC)
 
 ## Plan and cost note
 
-Render currently does not offer a Free compute plan for continuous background workers. The Blueprint therefore keeps the web service on Free, while the worker uses Render's smallest paid worker plan (0.5c-512mb). Render's current pricing lists that worker plan at $7/month. The Postgres resource remains on Free, subject to Render's current Free-tier limitations.
+A continuously running background worker costs $7/month at Render's smallest paid compute plan. This project does not need a continuously running process: each research/resolution cycle is bounded and can run as a scheduled Cron job. Render Cron is billed by active runtime and has a $1/month minimum per Cron service. The Blueprint therefore uses the smallest Cron compute plan (0.5c-512mb), which should keep the scheduled worker materially cheaper than an always-on worker when cycles are short. citeturn1search0turn1search2
+
+The Postgres resource remains on Free, subject to Render's current Free-tier limitations. In particular, Free Postgres expires 30 days after creation unless upgraded. citeturn1search3
 
 ## Apply the Blueprint
 
@@ -24,11 +27,11 @@ In Render Dashboard:
 2. Select the GitHub repository bxbyarchi/polymarket-ai-agent.
 3. Select branch main.
 4. Use the repository's render.yaml.
-5. Confirm the PostgreSQL resource and both services.
+5. Confirm the PostgreSQL resource, web service, and Cron service.
 6. For the web service, confirm /ready is the health check.
 7. Confirm DATABASE_URL is linked from polymarket-ai-agent-db.
-8. Confirm the worker uses python worker.py.
-9. Confirm the worker plan is 0.5c-512mb.
+8. Confirm the scheduled job uses python worker_once.py.
+9. Confirm the schedule is */15 * * * * (UTC).
 10. Leave OPENAI_API_KEY unset until AI research is intentionally enabled.
 11. Set a strong random ADMIN_API_KEY before exposing mutation endpoints.
 
@@ -38,10 +41,11 @@ After deployment:
 
 1. GET /ready must return HTTP 200 and {"status":"ready"}.
 2. Web logs must show Alembic migrations completing before Uvicorn starts.
-3. Worker logs must show recurring "Worker cycle completed".
+3. Cron run logs must show "Worker run completed".
 4. PostgreSQL should contain the migration tables.
 5. GET /health should report the database as reachable.
-6. Only after this should OPENAI_API_KEY be added for live research.
+6. Trigger one Cron run manually and confirm it exits successfully.
+7. Only after this should OPENAI_API_KEY be added for live research.
 
 ## Important
 
