@@ -28,15 +28,15 @@ class Critic:
         self.client: Any | None = None
 
     def _client(self) -> Any:
-        if not self.settings.openai_api_key:
-            raise RuntimeError("OPENAI_API_KEY is not configured")
+        if not self.settings.gemini_api_key:
+            raise RuntimeError("GEMINI_API_KEY is not configured")
         if self.client is None:
-            self.client = AsyncOpenAI(api_key=self.settings.openai_api_key)
+            self.client = genai.Client(api_key=self.settings.gemini_api_key)
         return self.client
 
     async def close(self) -> None:
         if self.client is not None:
-            await self.client.aclose()
+            await self.client.aio.aclose()
             self.client = None
 
     async def review(self, market: dict[str, Any], analysis: dict[str, Any]) -> dict[str, Any]:
@@ -65,14 +65,28 @@ Return exactly:
 review_probability and confidence must be between 0 and 1.
 """
 
-        response = await self._client().responses.create(
-            model=self.settings.openai_model,
-            instructions=SYSTEM_PROMPT,
-            tools=[{"type": "web_search"}],
-            input=prompt,
-            max_output_tokens=self.settings.ai_max_output_tokens,
+        response = await self._client().aio.models.generate_content(
+            model=self.settings.gemini_model,
+            contents=f"{SYSTEM_PROMPT}\n\n{prompt}",
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema={
+                    "type": "OBJECT",
+                    "properties": {
+                        "approved": {"type": "BOOLEAN"},
+                        "review_probability": {"type": "NUMBER"},
+                        "confidence": {"type": "NUMBER"},
+                        "issues": {"type": "ARRAY", "items": {"type": "STRING"}},
+                        "missing_evidence": {"type": "ARRAY", "items": {"type": "STRING"}},
+                        "reasoning": {"type": "STRING"},
+                        "sources_to_verify": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {"title": {"type": "STRING"}, "url": {"type": "STRING"}}, "required": ["title", "url"]}},
+                    },
+                    "required": ["approved", "review_probability", "confidence", "issues", "missing_evidence", "reasoning", "sources_to_verify"],
+                },
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+            ),
         )
-        result = self._parse_json(response.output_text)
+        result = self._parse_json(response.text)
         result["review_probability"] = self._clamp(result.get("review_probability"))
         result["confidence"] = self._clamp(result.get("confidence"))
         result["approved"] = bool(result.get("approved"))
