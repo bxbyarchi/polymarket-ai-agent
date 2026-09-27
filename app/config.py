@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     gemini_api_key: str = ""
     admin_api_key: str = ""
-    gemini_model: str = "gemini-3.8-flash"
+    gemini_model: str = "gemini-3.7-flash"
     gemini_enable_google_search: bool = False
     ai_max_output_tokens: int = 2500
 
