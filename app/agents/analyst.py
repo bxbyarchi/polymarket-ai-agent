@@ -115,7 +115,7 @@ event_date may be null. market_probability_observed may be null if unavailable. 
                     },
                     "required": ["event_question", "event_date", "category", "market_probability_observed", "probability", "confidence", "summary", "key_factors", "counter_factors", "sources", "as_of"],
                 },
-                tools=[types.Tool(google_search=types.GoogleSearch())],
+                tools=[types.Tool(google_search=types.GoogleSearch())] if self.settings.gemini_enable_google_search else None,
             ),
         )
 
