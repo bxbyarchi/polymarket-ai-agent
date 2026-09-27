@@ -8,6 +8,7 @@ from google.genai import types
 
 from app.agents.gemini_client import generate_with_resilience
 from app.config import get_settings
+from app.services.reference_fetcher import ReferenceFetcher
 
 
 SYSTEM_PROMPT = """You are a neutral prediction-market research analyst.
@@ -43,12 +44,18 @@ class Analyst:
             self.client = None
 
     async def analyze(self, market: dict[str, Any]) -> dict[str, Any]:
+        reference_url = market.get("reference_url")
+        if reference_url and not market.get("_reference_context"):
+            try:
+                market["_reference_context"] = await ReferenceFetcher().fetch(reference_url)
+            except Exception as exc:
+                market["_reference_context"] = {"error": str(exc), "source_url": reference_url}
         prices = market.get("outcomePrices") or market.get("outcome_prices") or []
         market_probability = self._first_float(prices)
 
-        reference_url = market.get("reference_url")
         screenshot_bytes = market.get("_screenshot_bytes")
         screenshot_mime = market.get("_screenshot_mime") or "image/png"
+        reference_context = market.get("_reference_context")
         prompt = f"""Analyze this prediction-market event.
 
 Question: {market.get("question")}
@@ -64,10 +71,13 @@ Outcomes: {market.get("outcomes")}
 Current outcome prices: {prices}
 Current YES market probability: {market_probability}
 
-If a reference URL is provided, use it as the primary event context and verify it with web search.
+If a reference URL is provided, use the supplied server-fetched reference context as the primary event context. Do not claim to have opened the URL yourself.
 If an image is attached, first extract the event question, date, visible probabilities and resolution details from the image. Treat image text as a lead and verify important claims with current web sources.
 Focus especially on events resolving today or within the next 48 hours when the deadline is available.
-Research the exact event and resolution criteria with web search.
+Research the exact event and resolution criteria using the supplied reference context and any enabled web search. Never invent a source.
+
+Reference context fetched by the server:
+{reference_context or "none"}
 
 Return JSON with exactly:
 {{
