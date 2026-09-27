@@ -45,7 +45,7 @@ async def health() -> dict:
     return {
         "status": "ok" if database_reachable else "degraded",
         "environment": settings.app_env,
-        "ai_configured": bool(settings.openai_api_key),
+        "ai_configured": bool(settings.gemini_api_key),
         "database_configured": bool(settings.database_url),
         "database_reachable": database_reachable,
     }
