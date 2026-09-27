@@ -17,13 +17,30 @@ class MarketScorer:
         volume_component = min(1.0, volume / 1_000_000.0)
 
         freshness = self._freshness_score(market.get("end_date"))
+        category = self._category_score(market)
         return round(
-            0.35 * liquidity_component
-            + 0.35 * volume_24h_component
-            + 0.20 * volume_component
-            + 0.10 * freshness,
+            0.25 * liquidity_component
+            + 0.25 * volume_24h_component
+            + 0.10 * volume_component
+            + 0.30 * freshness
+            + 0.10 * category,
             4,
         )
+
+    @staticmethod
+    def _category_score(market: dict[str, Any]) -> float:
+        text = " ".join(
+            str(market.get(key) or "")
+            for key in ("question", "slug", "description")
+        ).lower()
+        words = (
+            "election", "president", "prime minister", "senate", "congress",
+            "vote", "politic", "trump", "fed", "interest rate", "inflation",
+            "cpi", "stock", "bitcoin", "btc", "ethereum", "eth", "finance",
+            "nba", "nfl", "mlb", "nhl", "ufc", "football", "soccer", "tennis",
+            "match", "game", "sport",
+        )
+        return 1.0 if any(word in text for word in words) else 0.0
 
     @staticmethod
     def _freshness_score(end_date: Any) -> float:
