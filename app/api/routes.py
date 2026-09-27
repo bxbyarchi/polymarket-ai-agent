@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Query, Header
+from fastapi import APIRouter, HTTPException, Query, Header, UploadFile, File, Form
 import logging
 import secrets
+from uuid import uuid4
 
 from app.agents.orchestrator import ResearchOrchestrator
 from app.config import get_settings
@@ -128,6 +129,72 @@ async def analyze_market(
         raise HTTPException(
             status_code=502,
             detail="Market analysis failed. Check server logs for details.",
+        )
+
+
+@router.post("/research/reference")
+async def research_reference(
+    source_url: str | None = Form(default=None),
+    category: str | None = Form(default=None),
+    screenshot: UploadFile | None = File(default=None),
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> dict:
+    """Research a user-supplied event URL or screenshot immediately."""
+    _require_admin_key(x_admin_key)
+    if not source_url and screenshot is None:
+        raise HTTPException(status_code=400, detail="Provide source_url or screenshot")
+
+    screenshot_bytes = None
+    screenshot_mime = None
+    if screenshot is not None:
+        screenshot_bytes = await screenshot.read()
+        if not screenshot_bytes:
+            raise HTTPException(status_code=400, detail="Screenshot is empty")
+        if len(screenshot_bytes) > 8 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Screenshot must be 8 MB or smaller")
+        screenshot_mime = screenshot.content_type or "image/png"
+        if not screenshot_mime.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Screenshot must be an image")
+
+    market = {
+        "id": f"manual-{uuid4().hex}",
+        "question": "User-supplied event; extract the exact question from the reference",
+        "slug": None,
+        "active": True,
+        "closed": False,
+        "start_date": None,
+        "end_date": None,
+        "description": None,
+        "outcomes": ["Yes", "No"],
+        "outcome_prices": [],
+        "volume": 0.0,
+        "volume_24h": 0.0,
+        "liquidity": 0.0,
+        "reference_url": source_url,
+        "category": category or "auto",
+        "_screenshot_bytes": screenshot_bytes,
+        "_screenshot_mime": screenshot_mime,
+    }
+
+    try:
+        analysis = await research.run(market)
+        market["question"] = analysis.get("event_question") or market["question"]
+        market["end_date"] = analysis.get("event_date")
+        market["description"] = analysis.get("summary")
+        run_id = await persistence.save_analysis(market, analysis)
+        return {
+            "research_run_id": run_id,
+            "mode": "reference",
+            "source_url": source_url,
+            "category": analysis.get("category") or category or "other",
+            "market": market,
+            "analysis": analysis,
+        }
+    except Exception:
+        logger.exception("Reference research failed")
+        raise HTTPException(
+            status_code=502,
+            detail="Reference research failed. Check server logs for details.",
         )
 
 
