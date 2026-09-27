@@ -8,7 +8,7 @@ Research-only agent for active Polymarket markets. It discovers markets, normali
 
 Polymarket Gamma API -> Scanner -> Priority Scorer -> Persistence -> Analyst -> Critic -> Calibration -> Research history
 
-The project includes FastAPI, SQLite for local development, PostgreSQL/asyncpg support, a background worker, analyst + critic research, leakage-safe walk-forward calibration, research-quality metrics, and a web dashboard.
+The project includes FastAPI, SQLite for local development, PostgreSQL/asyncpg support, a local continuous worker plus a production scheduled Cron job, analyst + critic research, leakage-safe walk-forward calibration, research-quality metrics, and a web dashboard.
 
 ## API
 
@@ -37,7 +37,7 @@ Live research may use all currently resolved history because those outcomes are 
 
 Copy .env.example to .env. OPENAI_API_KEY is required only for AI research. The current read-only scanner and resolution flow use Polymarket's public Gamma API, so a Polymarket API key is not required yet.
 
-Other settings include OPENAI_MODEL, AI_MAX_OUTPUT_TOKENS, DATABASE_URL, ADMIN_API_KEY, WORKER_INTERVAL_SECONDS, WORKER_MAX_RESEARCH_PER_CYCLE, market filters, and request timeout.
+Other settings include OPENAI_MODEL, AI_MAX_OUTPUT_TOKENS, DATABASE_URL, ADMIN_API_KEY, WORKER_INTERVAL_SECONDS, WORKER_MAX_RESEARCH_PER_CYCLE, MIN_RESEARCH_INTERVAL_SECONDS, RESOLUTION_CONCURRENCY, market filters, and request timeout.
 
 Never commit .env or API keys to Git. The POST /scan, POST /analyze/{market_id}, and POST /resolutions/sync endpoints require the X-Admin-Key header matching ADMIN_API_KEY.
 
@@ -61,7 +61,7 @@ Each cycle synchronizes stored resolutions, discovers active markets, persists s
 
 ## Deployment
 
-Docker and Render configuration are included. For production: create PostgreSQL, set DATABASE_URL, set OPENAI_API_KEY when AI research is enabled, deploy the web service, run the worker as a separate long-running process/service, and verify /ready, /health, and /dashboard. Both the API and worker run Alembic migrations on container startup.
+Docker and Render configuration are included. Production is designed as a Render Web Service plus a scheduled Render Cron job backed by managed PostgreSQL. The Blueprint in `render.yaml` links both services to the same PostgreSQL database. The Cron runs `python worker_once.py` every 15 minutes; the web service exposes the API and dashboard. Set `OPENAI_API_KEY` when AI research is enabled and set `ADMIN_API_KEY` for protected mutating endpoints. Verify `/ready`, `/health`, and `/dashboard` after deployment. The Docker entrypoint runs Alembic migrations before the application command.
 
 The current system remains research-only even after deployment.
 
@@ -73,12 +73,12 @@ Secrets are read from environment variables and are never returned by API respon
 
 Completed: market discovery and normalization, priority scoring, persistence, analyst + critic pipeline, resolution tracking, calibration, leakage-safe walk-forward backtesting, metrics API, dashboard, and CI test suite.
 
-Next: production Postgres deployment, real OpenAI key, end-to-end live research run, richer market detail/history UI, and paper-trading simulation only after the research layer is validated.
+Next: apply the Render Blueprint to the existing production service/database, verify a real scan + resolution cycle, then add the real OpenAI key and run end-to-end AI research. After the research layer is validated, continue with richer market detail/history UI and paper-trading simulation only.
 
 
 ### Database migrations
 
-Production deployments use Alembic migrations. The Docker entrypoint runs `alembic upgrade head` before starting either the API or worker.
+Production deployments use Alembic migrations. The Docker entrypoint runs `alembic upgrade head` before starting the API or a one-shot Cron worker.
 
-For a persistent deployment, set `DATABASE_URL` to a managed PostgreSQL database in both the web service and worker. Do not use the default SQLite database for a multi-service production deployment: web and worker containers do not share a durable SQLite file. The repository keeps SQLite only as the convenient local default.
+For a persistent deployment, set `DATABASE_URL` to the same managed PostgreSQL database in both the web service and scheduled Cron worker. Do not use the default SQLite database for a multi-service production deployment: web and worker containers do not share a durable SQLite file. The repository keeps SQLite only as the convenient local default.
 
