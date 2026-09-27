@@ -48,11 +48,19 @@ async def markets(
     min_liquidity: float | None = Query(default=None, ge=0),
     min_volume: float | None = Query(default=None, ge=0),
 ) -> dict:
-    return await scanner.discover(
+    result = await scanner.discover(
         limit=limit,
         min_liquidity=min_liquidity,
         min_volume=min_volume,
     )
+    markets_with_priority = [
+        {**market, "research_priority": scorer.score(market)}
+        for market in result["markets"]
+    ]
+    markets_with_priority.sort(
+        key=lambda item: item["research_priority"], reverse=True
+    )
+    return {**result, "markets": markets_with_priority}
 
 
 @router.post("/scan")
