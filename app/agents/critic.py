@@ -6,6 +6,7 @@ from typing import Any
 from google import genai
 from google.genai import types
 
+from app.agents.gemini_client import generate_with_resilience
 from app.config import get_settings
 
 
