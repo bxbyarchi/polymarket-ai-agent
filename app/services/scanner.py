@@ -76,6 +76,7 @@ class MarketScanner:
 
         return {
             "id": str(market.get("id", "")),
+            "category": self._category(market),
             "question": market.get("question"),
             "slug": market.get("slug"),
             "condition_id": market.get("conditionId"),
