@@ -70,6 +70,10 @@ Research the exact event and resolution criteria with web search.
 
 Return JSON with exactly:
 {{
+  "event_question": "normalized event question",
+  "event_date": "ISO-8601 or null",
+  "category": "politics|finance|sports|other",
+  "market_probability_observed": 0.0,
   "probability": 0.0,
   "confidence": 0.0,
   "summary": "short evidence-based explanation",
@@ -79,7 +83,7 @@ Return JSON with exactly:
   "as_of": "ISO-8601 timestamp"
 }}
 
-probability and confidence must be decimals from 0 to 1.
+event_date may be null. market_probability_observed may be null if unavailable. probability, confidence and market_probability_observed must be decimals from 0 to 1 when present.
 """
 
         contents: Any = f"{SYSTEM_PROMPT}\n\n{prompt}"
@@ -97,6 +101,10 @@ probability and confidence must be decimals from 0 to 1.
                 response_schema={
                     "type": "OBJECT",
                     "properties": {
+                        "event_question": {"type": "STRING"},
+                        "event_date": {"type": "STRING"},
+                        "category": {"type": "STRING"},
+                        "market_probability_observed": {"type": "NUMBER"},
                         "probability": {"type": "NUMBER"},
                         "confidence": {"type": "NUMBER"},
                         "summary": {"type": "STRING"},
@@ -105,7 +113,7 @@ probability and confidence must be decimals from 0 to 1.
                         "sources": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {"title": {"type": "STRING"}, "url": {"type": "STRING"}}, "required": ["title", "url"]}},
                         "as_of": {"type": "STRING"},
                     },
-                    "required": ["probability", "confidence", "summary", "key_factors", "counter_factors", "sources", "as_of"],
+                    "required": ["event_question", "event_date", "category", "market_probability_observed", "probability", "confidence", "summary", "key_factors", "counter_factors", "sources", "as_of"],
                 },
                 tools=[types.Tool(google_search=types.GoogleSearch())],
             ),
@@ -114,10 +122,11 @@ probability and confidence must be decimals from 0 to 1.
         result = self._parse_json(response.text)
         probability = self._clamp(result.get("probability"))
         confidence = self._clamp(result.get("confidence"))
+        observed_probability = self._clamp(result.get("market_probability_observed"))
 
         result["probability"] = probability
         result["confidence"] = confidence
-        result["market_probability"] = market_probability
+        result["market_probability"] = market_probability if market_probability is not None else observed_probability
         result["edge"] = (
             probability - market_probability
             if probability is not None and market_probability is not None
