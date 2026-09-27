@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 import asyncio
+import logging
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import Market, MarketResolution
 from app.services.calibration import resolved_outcome
 from app.services.polymarket import PolymarketClient
+
+
+logger = logging.getLogger(__name__)
 
 
 class ResolutionTracker:
@@ -30,6 +34,7 @@ class ResolutionTracker:
                 try:
                     current = await self.polymarket.get_market(market.id)
                 except Exception:
+                    logger.exception("Resolution lookup failed for market %s", market.id)
                     return market.id, None, None
                 return market.id, resolved_outcome(current), self._json(current)
 
