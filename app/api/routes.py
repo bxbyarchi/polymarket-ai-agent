@@ -14,6 +14,7 @@ from app.services.backtest import backtest_predictions
 from app.services.resolution_tracker import ResolutionTracker
 from app.services.calibrator import calibrate_probability
 from app.services.walk_forward import walk_forward_backtest
+from app.services.reference_fetcher import ReferenceFetcher
 from sqlalchemy import func
 from app.db import ResearchRun, Market, MarketSnapshot
 
@@ -177,6 +178,8 @@ async def research_reference(
     }
 
     try:
+        if source_url:
+            market["_reference_context"] = await ReferenceFetcher().fetch(source_url)
         analysis = await research.run(market)
         market["question"] = analysis.get("event_question") or market["question"]
         market["end_date"] = analysis.get("event_date")
@@ -186,6 +189,12 @@ async def research_reference(
             "research_run_id": run_id,
             "mode": "reference",
             "source_url": source_url,
+            "reference": {
+                "fetched": bool(market.get("_reference_context")),
+                "method": (market.get("_reference_context") or {}).get("method"),
+                "title": (market.get("_reference_context") or {}).get("title"),
+                "error": (market.get("_reference_context") or {}).get("error"),
+            },
             "category": analysis.get("category") or category or "other",
             "market": market,
             "analysis": analysis,
@@ -247,11 +256,12 @@ async def metrics() -> dict:
         rows = result.all()
 
         latest_result = await session.execute(
-            select(ResearchRun)
+            select(ResearchRun, Market)
+            .join(Market, ResearchRun.market_id == Market.id)
             .order_by(ResearchRun.created_at.desc())
             .limit(10)
         )
-        latest_runs = list(latest_result.scalars())
+        latest_runs = list(latest_result.all())
 
     predictions = [
         {
@@ -284,6 +294,8 @@ async def metrics() -> dict:
             {
                 "id": run.id,
                 "market_id": run.market_id,
+                "question": market.question,
+                "end_date": market.end_date,
                 "created_at": run.created_at.isoformat(),
                 "probability": run.probability,
                 "raw_probability": run.raw_probability,
@@ -292,8 +304,9 @@ async def metrics() -> dict:
                 "market_probability": run.market_probability,
                 "edge": run.edge,
                 "confidence": run.confidence,
+                "summary": run.summary,
             }
-            for run in latest_runs
+            for run, market in latest_runs
         ],
     }
 
