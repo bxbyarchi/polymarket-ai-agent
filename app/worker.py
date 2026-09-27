@@ -57,14 +57,14 @@ class MarketWorker:
         failures = 0
         max_research = max(0, self.settings.worker_max_research_per_cycle)
 
-        if not self.settings.openai_api_key:
+        if not self.settings.gemini_api_key:
             return {
                 "markets_scanned": len(markets),
                 "markets_checked_for_resolution": resolution_summary["checked"],
                 "markets_resolved": resolution_summary["resolved"],
                 "markets_researched": 0,
                 "research_failures": 0,
-                "research_skipped": "OPENAI_API_KEY not configured",
+                "research_skipped": "GEMINI_API_KEY not configured",
             }
 
         calibration = await self._load_calibration()

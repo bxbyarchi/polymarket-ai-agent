@@ -15,7 +15,7 @@ services:
         fromDatabase:
           name: polymarket-ai-agent-db
           property: connectionString
-      - key: OPENAI_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
       - key: ADMIN_API_KEY
         sync: false
@@ -41,7 +41,7 @@ services:
         fromDatabase:
           name: polymarket-ai-agent-db
           property: connectionString
-      - key: OPENAI_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
       - key: PYTHONUNBUFFERED
         value: "1"

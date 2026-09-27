@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from openai import AsyncOpenAI
+from google import genai
+from google.genai import types
 
 from app.config import get_settings
 
@@ -26,9 +27,9 @@ Rules:
 class Analyst:
     def __init__(self) -> None:
         self.settings = get_settings()
-        self.client: AsyncOpenAI | None = None
+        self.client: Any | None = None
 
-    def _client(self) -> AsyncOpenAI:
+    def _client(self) -> Any:
         if not self.settings.openai_api_key:
             raise RuntimeError("OPENAI_API_KEY is not configured")
         if self.client is None:
@@ -37,7 +38,7 @@ class Analyst:
 
     async def close(self) -> None:
         if self.client is not None:
-            await self.client.close()
+            await self.client.aclose()
             self.client = None
 
     async def analyze(self, market: dict[str, Any]) -> dict[str, Any]:
