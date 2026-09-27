@@ -10,14 +10,14 @@ class Settings(BaseSettings):
     gamma_api_url: str = "https://gamma-api.polymarket.com"
     clob_api_url: str = "https://clob.polymarket.com"
     request_timeout_seconds: float = 20.0
-    default_market_limit: int = 50
+    default_market_limit: int = 100
     min_liquidity: float = 1000.0
     min_volume: float = 1000.0
 
     database_url: str = "sqlite+aiosqlite:///./polymarket.db"
 
     worker_interval_seconds: int = 900
-    worker_max_research_per_cycle: int = 3
+    worker_max_research_per_cycle: int = 5
     min_research_interval_seconds: int = 3600
     resolution_concurrency: int = 10
     research_horizon_hours: int = 48
