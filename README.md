@@ -35,9 +35,9 @@ Live research may use all currently resolved history because those outcomes are 
 
 ## Configuration
 
-Copy .env.example to .env. OPENAI_API_KEY is required only for AI research. The current read-only scanner and resolution flow use Polymarket's public Gamma API, so a Polymarket API key is not required yet.
+Copy .env.example to .env. GEMINI_API_KEY is required only for AI research. The current read-only scanner and resolution flow use Polymarket's public Gamma API, so a Polymarket API key is not required yet.
 
-Other settings include OPENAI_MODEL, AI_MAX_OUTPUT_TOKENS, DATABASE_URL, ADMIN_API_KEY, WORKER_INTERVAL_SECONDS, WORKER_MAX_RESEARCH_PER_CYCLE, MIN_RESEARCH_INTERVAL_SECONDS, RESOLUTION_CONCURRENCY, market filters, and request timeout.
+Other settings include GEMINI_MODEL, AI_MAX_OUTPUT_TOKENS, DATABASE_URL, ADMIN_API_KEY, WORKER_INTERVAL_SECONDS, WORKER_MAX_RESEARCH_PER_CYCLE, MIN_RESEARCH_INTERVAL_SECONDS, RESOLUTION_CONCURRENCY, market filters, and request timeout.
 
 Never commit .env or API keys to Git. The POST /scan, POST /analyze/{market_id}, and POST /resolutions/sync endpoints require the X-Admin-Key header matching ADMIN_API_KEY.
 
@@ -49,7 +49,7 @@ Never commit .env or API keys to Git. The POST /scan, POST /analyze/{market_id},
 
 Then open /dashboard or /docs.
 
-Without OPENAI_API_KEY, market scanning, persistence, dashboard, resolution sync, and calibration endpoints can still be exercised. AI analysis endpoints intentionally fail with a clear configuration error.
+Without GEMINI_API_KEY, market scanning, persistence, dashboard, resolution sync, and calibration endpoints can still be exercised. AI analysis endpoints intentionally fail with a clear configuration error.
 
 ## Background worker
 
@@ -61,7 +61,7 @@ Each cycle synchronizes stored resolutions, discovers active markets, persists s
 
 ## Deployment
 
-Docker and Render configuration are included. Production is designed as a Render Web Service plus a scheduled Render Cron job backed by managed PostgreSQL. The Blueprint in `render.yaml` links both services to the same PostgreSQL database. The Cron runs `python worker_once.py` every 15 minutes; the web service exposes the API and dashboard. Set `OPENAI_API_KEY` when AI research is enabled and set `ADMIN_API_KEY` for protected mutating endpoints. Verify `/ready`, `/health`, and `/dashboard` after deployment. The Docker entrypoint runs Alembic migrations before the application command.
+Docker and Render configuration are included. Production is designed as a Render Web Service plus a scheduled Render Cron job backed by managed PostgreSQL. The Blueprint in `render.yaml` links both services to the same PostgreSQL database. The Cron runs `python worker_once.py` every 15 minutes; the web service exposes the API and dashboard. Set `GEMINI_API_KEY` when AI research is enabled and set `ADMIN_API_KEY` for protected mutating endpoints. Verify `/ready`, `/health`, and `/dashboard` after deployment. The Docker entrypoint runs Alembic migrations before the application command.
 
 The current system remains research-only even after deployment.
 
@@ -73,7 +73,7 @@ Secrets are read from environment variables and are never returned by API respon
 
 Completed: market discovery and normalization, priority scoring, persistence, analyst + critic pipeline, resolution tracking, calibration, leakage-safe walk-forward backtesting, metrics API, dashboard, and CI test suite.
 
-Next: apply the Render Blueprint to the existing production service/database, verify a real scan + resolution cycle, then add the real OpenAI key and run end-to-end AI research. After the research layer is validated, continue with richer market detail/history UI and paper-trading simulation only.
+Next: apply the Render Blueprint to the existing production service/database, verify a real scan + resolution cycle, then add the real Gemini key and run end-to-end AI research. After the research layer is validated, continue with richer market detail/history UI and paper-trading simulation only.
 
 
 ### Database migrations
