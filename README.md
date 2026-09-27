@@ -1,6 +1,6 @@
 # Polymarket AI Agent
 
-Research-only agent for active Polymarket markets. It discovers markets, normalizes data, assigns research priority, researches exact resolution criteria with web search, estimates an independent probability, compares it with the market probability, and stores research history.
+Research-only agent for active Polymarket markets. It discovers markets, prioritizes near-term events, researches exact resolution criteria with web search, estimates an independent probability, compares it with the market probability, and stores research history. You can also submit a specific event URL or screenshot and run immediate targeted research.
 
 **No orders are placed and no trades are executed.**
 
@@ -18,6 +18,7 @@ The project includes FastAPI, SQLite for local development, PostgreSQL/asyncpg s
 - GET /markets?limit=50 — active market discovery.
 - POST /scan?limit=20 — discover, score, and persist market snapshots (GET remains as a compatibility alias).
 - POST /analyze/{market_id} — run fresh AI/web research and persist the result (GET remains as a compatibility alias).
+- POST /research/reference — submit an event URL and/or screenshot for immediate targeted research.
 - GET /history/{market_id} — market snapshots and research runs.
 - GET /metrics — system counters, quality metrics, timeline, and latest research.
 - GET /calibration — leakage-safe walk-forward evaluation.
@@ -49,7 +50,7 @@ Never commit .env or API keys to Git. The POST /scan, POST /analyze/{market_id},
 
 Then open /dashboard or /docs.
 
-Without GEMINI_API_KEY, market scanning, persistence, dashboard, resolution sync, and calibration endpoints can still be exercised. AI analysis endpoints intentionally fail with a clear configuration error.
+Without GEMINI_API_KEY, market scanning, persistence, dashboard, resolution sync, and calibration endpoints can still be exercised. AI analysis endpoints intentionally fail with a clear configuration error. The dashboard also provides a targeted research console where an authorized user can paste a URL or upload an event screenshot.
 
 ## Background worker
 
@@ -57,7 +58,7 @@ Run:
 
     python worker.py
 
-Each cycle synchronizes stored resolutions, discovers active markets, persists snapshots, ranks research priority, researches up to WORKER_MAX_RESEARCH_PER_CYCLE markets, persists research and source evidence, and sleeps for WORKER_INTERVAL_SECONDS.
+Each cycle synchronizes stored resolutions, discovers active markets, strongly prioritizes markets resolving within roughly 48 hours, groups them into politics/finance/sports/other, researches up to WORKER_MAX_RESEARCH_PER_CYCLE markets, persists research and source evidence, and sleeps for WORKER_INTERVAL_SECONDS.
 
 ## Deployment
 
