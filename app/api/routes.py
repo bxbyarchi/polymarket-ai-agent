@@ -257,7 +257,7 @@ async def metrics() -> dict:
         snapshots_count = await session.scalar(select(func.count(MarketSnapshot.id)))
         runs_count = await session.scalar(select(func.count(ResearchRun.id)))
         resolutions_count = await session.scalar(select(func.count(MarketResolution.market_id)))
-        today_start = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)\n        daily_research_count = await session.scalar(select(func.count(ResearchRun.id)).where(ResearchRun.created_at >= today_start))\n
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)\n        daily_research_count = await session.scalar(select(func.count(ResearchRun.id)).where(ResearchRun.created_at >= today_start))\n
         result = await session.execute(
             select(ResearchRun, MarketResolution)
             .join(MarketResolution, ResearchRun.market_id == MarketResolution.market_id)
