@@ -44,7 +44,20 @@ class MarketWorker:
             {**market, "research_priority": self.scorer.score(market)}
             for market in result["markets"]
         ]
-        markets.sort(key=lambda item: item["research_priority"], reverse=True)
+        # Prefer the nearest resolvable markets first, then use research priority as a tie-breaker.
+        def _deadline(item: dict[str, Any]) -> datetime:
+            raw = str(item.get("end_date") or "").replace("Z", "+00:00")
+            try:
+                value = datetime.fromisoformat(raw)
+                return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+            except ValueError:
+                return datetime.max.replace(tzinfo=timezone.utc)
+
+        now = datetime.now(timezone.utc)
+        horizon = now + timedelta(hours=self.settings.research_horizon_hours)
+        markets.sort(key=lambda item: (_deadline(item) if _deadline(item) > now else datetime.max.replace(tzinfo=timezone.utc), -item["research_priority"]))
+        near_deadline = [m for m in markets if now < _deadline(m) <= horizon]
+        markets = near_deadline + [m for m in markets if m not in near_deadline]
 
         async with SessionLocal() as session:
             for market in markets:
