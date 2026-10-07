@@ -17,6 +17,8 @@ services:
           property: connectionString
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_ENABLE_GOOGLE_SEARCH
+        value: "true"
       - key: POLYMARKET_API_KEY
         sync: false
       - key: POLYMARKET_API_SECRET
@@ -51,6 +53,8 @@ services:
           property: connectionString
       - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_ENABLE_GOOGLE_SEARCH
+        value: "true"
       - key: POLYMARKET_API_KEY
         sync: false
       - key: POLYMARKET_API_SECRET
@@ -65,3 +69,4 @@ services:
 databases:
   - name: polymarket-ai-agent-db
     plan: free
+    region: frankfurt
