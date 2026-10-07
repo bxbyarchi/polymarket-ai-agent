@@ -134,64 +134,79 @@ async def analyze_market(
 @router.post("/research/reference")
 async def research_reference(
     source_url: str | None = Form(default=None),
+    market_id: str | None = Form(default=None),
     category: str | None = Form(default=None),
-    screenshot: UploadFile | None = File(default=None),
-    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
 ) -> dict:
-    """Research a user-supplied event URL or screenshot immediately."""
-    _require_admin_key(x_admin_key)
-    if not source_url and screenshot is None:
-        raise HTTPException(status_code=400, detail="Provide source_url or screenshot")
+    """Research a Polymarket event/market from its URL or market ID. Dashboard access is keyless."""
+    if not source_url and not market_id:
+        raise HTTPException(status_code=400, detail="Provide a Polymarket URL or market ID")
 
-    screenshot_bytes = None
-    screenshot_mime = None
-    if screenshot is not None:
-        screenshot_bytes = await screenshot.read()
-        if not screenshot_bytes:
-            raise HTTPException(status_code=400, detail="Screenshot is empty")
-        if len(screenshot_bytes) > 8 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail="Screenshot must be 8 MB or smaller")
-        screenshot_mime = screenshot.content_type or "image/png"
-        if not screenshot_mime.startswith("image/"):
-            raise HTTPException(status_code=400, detail="Screenshot must be an image")
+    market: dict[str, Any]
+    reference: dict[str, Any] = {}
+    if market_id:
+        try:
+            market = await polymarket.get_market(market_id.strip())
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Polymarket market ID could not be loaded: {exc}")
+    else:
+        try:
+            reference = await ReferenceFetcher().fetch(source_url.strip())
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not load Polymarket URL: {exc}")
 
-    market = {
-        "id": f"manual-{uuid4().hex}",
-        "question": "User-supplied event; extract the exact question from the reference",
-        "slug": None,
-        "active": True,
-        "closed": False,
-        "start_date": None,
-        "end_date": None,
-        "description": None,
-        "outcomes": ["Yes", "No"],
-        "outcome_prices": [],
-        "volume": 0.0,
-        "volume_24h": 0.0,
-        "liquidity": 0.0,
-        "reference_url": source_url,
-        "category": category or "auto",
-        "_screenshot_bytes": screenshot_bytes,
-        "_screenshot_mime": screenshot_mime,
-    }
+        # For an event URL, use the first active market with the nearest deadline as
+        # the concrete prediction target while keeping the whole event as context.
+        payload = reference.get("market") or {}
+        if not payload and reference.get("event"):
+            event = reference["event"]
+            candidates = [
+                m for m in (event.get("markets") or [])
+                if isinstance(m, dict) and not m.get("closed", False)
+            ]
+            candidates.sort(key=lambda m: str(m.get("endDate") or "9999"))
+            payload = candidates[0] if candidates else {}
+            if payload:
+                payload = {**payload, "event_title": event.get("title"), "event_description": event.get("description")}
+        if payload:
+            market = dict(payload)
+        else:
+            market = {
+                "id": f"manual-{uuid4().hex}",
+                "question": reference.get("title") or "User-supplied Polymarket event",
+                "slug": None,
+                "active": True,
+                "closed": False,
+                "start_date": None,
+                "end_date": None,
+                "description": reference.get("description"),
+                "outcomes": ["Yes", "No"],
+                "outcome_prices": [],
+                "volume": 0.0,
+                "volume_24h": 0.0,
+                "liquidity": 0.0,
+            }
+
+    market["reference_url"] = source_url
+    market["category"] = category or market.get("category") or "auto"
+    if reference:
+        market["_reference_context"] = reference
 
     try:
-        if source_url:
-            market["_reference_context"] = await ReferenceFetcher().fetch(source_url)
         analysis = await research.run(market)
-        market["question"] = analysis.get("event_question") or market["question"]
-        market["end_date"] = analysis.get("event_date")
-        market["description"] = analysis.get("summary")
+        market["question"] = analysis.get("event_question") or market.get("question")
+        market["end_date"] = analysis.get("event_date") or market.get("end_date")
+        market["description"] = analysis.get("summary") or market.get("description")
         run_id = await persistence.save_analysis(market, analysis)
         return {
             "research_run_id": run_id,
             "mode": "reference",
             "source_url": source_url,
+            "market_id": market.get("id"),
             "reference": {
-                "fetched": bool(market.get("_reference_context")),
-                "method": (market.get("_reference_context") or {}).get("method"),
-                "title": (market.get("_reference_context") or {}).get("title"),
-                "error": (market.get("_reference_context") or {}).get("error"),
+                "fetched": bool(reference),
+                "method": reference.get("method"),
+                "title": reference.get("title"),
+                "error": reference.get("error"),
             },
             "category": analysis.get("category") or category or "other",
             "market": market,
