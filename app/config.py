@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     admin_api_key: str = ""
     gemini_model: str = "gemini-3.5-flash-lite"
     gemini_fallback_model: str = "gemini-3.1-flash-lite"
-    gemini_enable_google_search: bool = False
+    gemini_enable_google_search: bool = True
     ai_max_output_tokens: int = 2500
 
     polymarket_api_key: str = ""
@@ -44,7 +44,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production_database(self):
         if self.app_env.lower() in {"production", "prod"} and self.database_url.startswith("sqlite"):
-            raise ValueError("Production deployments require DATABASE_URL to point to PostgreSQL")
+            raise ValueError(
+                "Production deployments require DATABASE_URL to point to PostgreSQL"
+            )
         return self
 
 

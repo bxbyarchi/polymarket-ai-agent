@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 import asyncio
+import json
 import logging
 
 from sqlalchemy import select
@@ -66,5 +67,4 @@ class ResolutionTracker:
 
     @staticmethod
     def _json(value: Any) -> str:
-        import json
         return json.dumps(value, default=str)
