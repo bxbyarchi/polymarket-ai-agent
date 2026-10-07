@@ -11,6 +11,23 @@
 
 <section class="grid" id="system"></section>
 
+<section class="panel" style="border-color:#3a6ea5">
+<h2>Как читать прогноз</h2>
+<div class="sub" style="font-size:14px;line-height:1.7">
+<b>AI</b> — оценка вероятности события. <b>Рынок</b> — текущая вероятность YES по цене рынка.
+<b>Edge</b> = AI − рынок.
+<br><b>AI выше рынка</b> → модель видит перевес в сторону YES.
+&nbsp;&nbsp;<b>AI ниже рынка</b> → модель видит перевес в сторону NO.
+&nbsp;&nbsp;<b>маленький Edge</b> → лучше считать сигнал нейтральным.
+</div>
+<div class="search" style="grid-template-columns:repeat(3,1fr);margin-top:12px">
+<div class="result" style="margin:0"><b>Пример</b><div class="sub">AI 72% · рынок 55% · Edge +17 п.п.</div><div class="prob pos">Перевес: YES</div></div>
+<div class="result" style="margin:0"><b>Пример</b><div class="sub">AI 38% · рынок 61% · Edge −23 п.п.</div><div class="prob">Перевес: NO</div></div>
+<div class="result" style="margin:0"><b>Пример</b><div class="sub">AI 53% · рынок 51% · Edge +2 п.п.</div><div class="prob">Сигнал: нейтральный</div></div>
+</div>
+<div class="sub" style="margin-top:10px">Это аналитический сигнал, а не гарантия результата. Чем меньше Edge и уверенность, тем слабее сигнал.</div>
+</section>
+
 <section class="panel">
 <h2>Анализ конкретного события</h2>
 <div class="sub">Просто вставь ссылку на событие/рынок Polymarket. Admin Key больше не нужен. Скриншот убран — агент получает точные данные напрямую из Polymarket.</div>
@@ -24,9 +41,9 @@
 </section>
 
 <div class="layout"><main>
-<section class="panel"><h2>Ближайшие события</h2><div class="sub">Список отсортирован по ближайшему дедлайну. Агент автоматически берет из этого пула следующие события для исследования.</div>
-<div class="tablewrap" style="margin-top:12px"><table class="table"><thead><tr><th>Событие</th><th>Категория</th><th>До дедлайна</th><th>YES</th><th>24h объём</th><th>Priority</th></tr></thead><tbody id="markets"></tbody></table></div></section>
-<section class="panel"><h2>Последние AI-анализы</h2><div class="tablewrap"><table class="table"><thead><tr><th>Событие</th><th>Дата</th><th>AI</th><th>Рынок</th><th>Edge</th><th>Уверенность</th></tr></thead><tbody id="runs"></tbody></table></div></section>
+<section class="panel"><h2>Ближайшие события</h2><div class="sub">Здесь показаны кандидаты до AI-анализа. Для принятия решения смотри ниже блок «Последние AI-анализы».</div>
+<div class="tablewrap" style="margin-top:12px"><table class="table"><thead><tr><th>Событие</th><th>Категория</th><th>До дедлайна</th><th>YES сейчас</th><th>24h объём</th><th>Статус</th></tr></thead><tbody id="markets"></tbody></table></div></section>
+<section class="panel"><h2>Последние AI-анализы — главное</h2><div class="sub">Главная строка: «Перевес». Она показывает, в какую сторону AI видит расхождение с рынком.</div><div class="tablewrap" style="margin-top:10px"><table class="table"><thead><tr><th>Перевес</th><th>Событие</th><th>AI</th><th>Рынок</th><th>Edge</th><th>Уверенность</th><th>Объяснение</th></tr></thead><tbody id="runs"></tbody></table></div></section>
 </main><aside>
 <section class="panel"><h2>Как работает агент</h2>
 <div class="factor">① Сканирует активные рынки Polymarket.</div>
@@ -94,7 +111,7 @@
         "<td>" + deadline(x.end_date) + "</td>" +
         "<td>" + pct(x.yes_probability) + "</td>" +
         "<td>" + money(x.volume_24h) + "</td>" +
-        "<td>" + Number(x.research_priority || 0).toFixed(3) + "</td>" +
+        '<td><span class="pill">Ожидает AI</span></td>' +
         "</tr>";
     }).join("") || '<tr><td colspan="6" class="empty">Нет активных событий.</td></tr>';
   }
@@ -105,12 +122,16 @@
       return "<tr>" +
         '<td style="white-space:normal;min-width:400px"><b>' + esc(r.question || "Событие") +
         '</b><div class="sub">' + esc(r.summary || "") + "</div></td>" +
-        "<td>" + new Date(r.created_at).toLocaleString("ru-RU") + "</td>" +
         "<td>" + pct(r.probability) + "</td>" +
         "<td>" + pct(r.market_probability) + "</td>" +
         '<td class="' + (Number(r.edge) >= 0 ? "pos" : "") + '">' + edge + "</td>" +
         "<td>" + (r.confidence == null ? "—" : (Number(r.confidence) * 100).toFixed(0) + "%") + "</td>" +
-        "</tr>";
+        '<td style="white-space:normal;min-width:260px">' +
+          (Number(r.edge) >= 0.05 && Number(r.confidence) >= 0.65 ? "AI видит заметный перевес в сторону YES." :
+           Number(r.edge) <= -0.05 && Number(r.confidence) >= 0.65 ? "AI видит заметный перевес в сторону NO." :
+           Math.abs(Number(r.edge)) >= 0.03 ? "Есть небольшой перевес, но сигнал ещё не сильный." :
+           "Расхождение слишком маленькое — сигнал нейтральный.") +
+        "</td></tr>";
     }).join("") || '<tr><td colspan="6" class="empty">Анализов пока нет.</td></tr>';
   }
 
