@@ -17,8 +17,9 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./polymarket.db"
 
     worker_interval_seconds: int = 900
-    worker_max_research_per_cycle: int = 5
-    min_research_interval_seconds: int = 3600
+    worker_max_research_per_cycle: int = 1
+    worker_daily_research_limit: int = 15
+    min_research_interval_seconds: int = 86400
     resolution_concurrency: int = 10
     research_horizon_hours: int = 48
     research_categories: str = "politics,finance,sports"
