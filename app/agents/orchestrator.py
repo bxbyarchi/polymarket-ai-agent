@@ -33,14 +33,42 @@ class ResearchOrchestrator:
             else None
         )
 
+        signal, signal_label, signal_reason = self._signal(final_probability, market_probability, analysis.get("confidence"), review.get("confidence"))
         return {
             **analysis,
             "probability": final_probability,
             "edge": edge,
             "review": review,
+            "signal": signal,
+            "signal_label": signal_label,
+            "signal_reason": signal_reason,
             "pipeline": "analyst+critic+calibration" if calibration_result is not None else "analyst+critic",
             "calibration": calibration_result,
         }
+
+    @staticmethod
+    def _signal(
+        probability: float | None,
+        market_probability: float | None,
+        analyst_confidence: float | None,
+        critic_confidence: float | None,
+    ) -> tuple[str, str, str]:
+        """Turn model-vs-market disagreement into a simple, conservative UI signal."""
+        if probability is None or market_probability is None:
+            return ("NO_DATA", "НЕТ ДАННЫХ", "Недостаточно данных для сравнения AI с рынком.")
+        edge = float(probability) - float(market_probability)
+        confidences = [float(x) for x in (analyst_confidence, critic_confidence) if x is not None]
+        confidence = sum(confidences) / len(confidences) if confidences else 0.0
+
+        if confidence < 0.55 or abs(edge) < 0.03:
+            return ("SKIP", "ПРОПУСК", "Преимущество AI слишком маленькое или уверенность недостаточна.")
+        if edge >= 0.05 and confidence >= 0.65:
+            return ("BUY_YES", "СТАВКА YES", f"AI оценивает YES на {edge * 100:.1f} п.п. выше рынка.")
+        if edge <= -0.05 and confidence >= 0.65:
+            return ("BUY_NO", "СТАВКА NO", f"AI оценивает YES на {abs(edge) * 100:.1f} п.п. ниже рынка.")
+        if edge > 0:
+            return ("WATCH_YES", "НАБЛЮДАТЬ YES", "Есть небольшой перевес в сторону YES, но он ниже сильного порога.")
+        return ("WATCH_NO", "НАБЛЮДАТЬ NO", "Есть небольшой перевес в сторону NO, но он ниже сильного порога.")
 
     @staticmethod
     def _combine_probability(analysis: dict[str, Any], review: dict[str, Any]) -> float | None:
