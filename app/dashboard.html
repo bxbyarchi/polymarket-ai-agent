@@ -127,23 +127,55 @@
     }).join("") || '<tr><td colspan="6" class="empty">Нет активных событий.</td></tr>';
   }
 
+  function signalFor(r) {
+    const edge = Number(r.edge);
+    const confidence = Number(r.confidence || 0);
+    if (!Number.isFinite(edge)) return {key:"SKIP",label:"⚪ ПРОПУСК",cls:"signal-skip",reason:"Нет достаточного сравнения AI и рынка."};
+    if (edge >= 0.05 && confidence >= 0.65) return {key:"YES",label:"🟢 YES",cls:"signal-yes",reason:"AI оценивает YES минимум на 5 п.п. выше рынка при достаточной уверенности."};
+    if (edge <= -0.05 && confidence >= 0.65) return {key:"NO",label:"🔴 NO",cls:"signal-no",reason:"AI оценивает YES минимум на 5 п.п. ниже рынка при достаточной уверенности."};
+    if (Math.abs(edge) >= 0.03) return {key:"WATCH",label:edge > 0 ? "🟡 НАБЛЮДАТЬ YES" : "🟡 НАБЛЮДАТЬ NO",cls:"signal-skip",reason:"Есть перевес, но он ещё не достаточно сильный."};
+    return {key:"SKIP",label:"⚪ ПРОПУСК",cls:"signal-skip",reason:"Расхождение слишком маленькое — лучше пропустить."};
+  }
+
+  function renderTopPicks(runs) {
+    const candidates = (runs || []).map(function(r){ return {r:r,s:signalFor(r)}; })
+      .filter(function(x){ return x.s.key === "YES" || x.s.key === "NO"; })
+      .sort(function(a,b){ return Math.abs(Number(b.r.edge||0)) - Math.abs(Number(a.r.edge||0)); })
+      .slice(0,5);
+    const box = $("topPicks");
+    if (!candidates.length) {
+      box.innerHTML = '<div class="empty">Сильных сигналов пока нет. Это нормально: агент не будет превращать маленькое преимущество в рекомендацию.</div>';
+      return;
+    }
+    box.innerHTML = candidates.map(function(x,i){
+      const r=x.r, s=x.s;
+      return '<div class="pick">' +
+        '<div class="pick-badge ' + s.cls + '">' + s.label + '</div>' +
+        '<div><div class="pick-question">' + esc((i+1) + ". " + (r.question || "Событие")) + '</div>' +
+        '<div class="pick-sub">' + esc(s.reason) + '</div></div>' +
+        '<div><div class="pick-num">' + pct(r.probability) + '</div><div class="pick-sub">AI · рынок ' + pct(r.market_probability) + '</div></div>' +
+        '<div><div class="pick-num">' + (r.edge == null ? "—" : (Number(r.edge)*100).toFixed(1) + " п.п.") + '</div><div class="pick-sub">Edge</div></div>' +
+      '</div>';
+    }).join("");
+  }
+
   function renderRuns(runs) {
-    $("runs").innerHTML = (runs || []).map(function (r) {
+    const rows = (runs || []).map(function (r) {
+      const s = signalFor(r);
       const edge = r.edge == null ? "—" : (Number(r.edge) * 100).toFixed(1) + " п.п.";
       return "<tr>" +
-        '<td style="white-space:normal;min-width:400px"><b>' + esc(r.question || "Событие") +
+        '<td><b class="' + s.cls + '">' + esc(s.label) + "</b></td>" +
+        '<td style="white-space:normal;min-width:320px"><b>' + esc(r.question || "Событие") +
         '</b><div class="sub">' + esc(r.summary || "") + "</div></td>" +
         "<td>" + pct(r.probability) + "</td>" +
         "<td>" + pct(r.market_probability) + "</td>" +
         '<td class="' + (Number(r.edge) >= 0 ? "pos" : "") + '">' + edge + "</td>" +
         "<td>" + (r.confidence == null ? "—" : (Number(r.confidence) * 100).toFixed(0) + "%") + "</td>" +
-        '<td style="white-space:normal;min-width:260px">' +
-          (Number(r.edge) >= 0.05 && Number(r.confidence) >= 0.65 ? "AI видит заметный перевес в сторону YES." :
-           Number(r.edge) <= -0.05 && Number(r.confidence) >= 0.65 ? "AI видит заметный перевес в сторону NO." :
-           Math.abs(Number(r.edge)) >= 0.03 ? "Есть небольшой перевес, но сигнал ещё не сильный." :
-           "Расхождение слишком маленькое — сигнал нейтральный.") +
-        "</td></tr>";
-    }).join("") || '<tr><td colspan="6" class="empty">Анализов пока нет.</td></tr>';
+        '<td style="white-space:normal;min-width:280px">' + esc(s.reason) + "</td>" +
+        "</tr>";
+    }).join("");
+    $("runs").innerHTML = rows || '<tr><td colspan="7" class="empty">Анализов пока нет.</td></tr>';
+    renderTopPicks(runs);
   }
 
   function renderSystem(metrics) {
