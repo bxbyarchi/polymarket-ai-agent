@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, Query, Header, UploadFile, File, Form
+from fastapi.responses import HTMLResponse
 import logging
 import secrets
 from uuid import uuid4
+from pathlib import Path
 
 from app.agents.orchestrator import ResearchOrchestrator
 from app.config import get_settings
@@ -19,6 +21,7 @@ from sqlalchemy import func
 from app.db import ResearchRun, Market, MarketSnapshot
 
 router = APIRouter()
+DASHBOARD_PATH = Path(__file__).resolve().parents[1] / "dashboard.html"
 logger = logging.getLogger(__name__)
 scanner = MarketScanner()
 polymarket = PolymarketClient()
@@ -35,13 +38,10 @@ def _require_admin_key(x_admin_key: str | None) -> None:
         raise HTTPException(status_code=401, detail="Admin authentication required")
 
 
-@router.get("/")
-async def root() -> dict:
-    return {
-        "name": "Polymarket AI Agent",
-        "version": "0.4.0",
-        "mode": "research-only",
-    }
+@router.get("/", include_in_schema=False)
+async def root() -> HTMLResponse:
+    """Serve the dashboard from the public root URL."""
+    return HTMLResponse(DASHBOARD_PATH.read_text(encoding="utf-8"))
 
 
 @router.get("/markets")
