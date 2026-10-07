@@ -69,6 +69,24 @@ class MarketWorker:
         analyzed = 0
         failures = 0
         max_research = max(0, self.settings.worker_max_research_per_cycle)
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        async with SessionLocal() as session:
+            from sqlalchemy import func
+            daily_count = await session.scalar(
+                select(func.count(ResearchRun.id)).where(ResearchRun.created_at >= today_start)
+            ) or 0
+        remaining_today = max(0, self.settings.worker_daily_research_limit - int(daily_count))
+        max_research = min(max_research, remaining_today)
+        if max_research <= 0:
+            return {
+                "markets_scanned": len(markets),
+                "markets_checked_for_resolution": resolution_summary["checked"],
+                "markets_resolved": resolution_summary["resolved"],
+                "markets_researched": 0,
+                "research_failures": 0,
+                "research_skipped": "daily research limit reached",
+                "daily_research_count": int(daily_count),
+            }
 
         if not self.settings.gemini_api_key:
             return {
@@ -104,6 +122,7 @@ class MarketWorker:
             "markets_resolved": resolution_summary["resolved"],
             "markets_researched": analyzed,
             "research_failures": failures,
+            "daily_research_count": int(daily_count) + analyzed,
         }
 
     async def _recently_researched(self, market_id: str) -> bool:
