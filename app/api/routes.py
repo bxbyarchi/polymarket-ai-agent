@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Header, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
 import logging
+from datetime import datetime, timezone
 import secrets
 from uuid import uuid4
 from pathlib import Path
@@ -295,6 +296,8 @@ async def metrics() -> dict:
             "snapshots": snapshots_count or 0,
             "research_runs": runs_count or 0,
             "resolved_markets": resolutions_count or 0,
+            "daily_research_count": daily_research_count or 0,
+            "daily_research_target": get_settings().worker_daily_research_limit,
         },
         "quality": {
             "predictions_evaluated": quality["predictions"],
